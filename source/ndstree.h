@@ -1,5 +1,8 @@
 inline int cmp(char *a, bool a_isdir, char *b, bool b_isdir)
 {
+	(void)a_isdir;
+	(void)b_isdir;
+
 	// oh... directory sort doesn't matter since we write out dir- and filenames seperately
 	//if (a_isdir && !b_isdir) return -1;
 	//if (b_isdir && !a_isdir) return +1;

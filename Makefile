@@ -11,7 +11,7 @@ INCLUDEDIRS	:= source
 # Defines passed to all files
 # ---------------------------
 
-DEFINES		:= -DPACKAGE_VERSION=\"2.2.0\"
+DEFINES		:= -DPACKAGE_VERSION=\"2.2.1\"
 
 # Libraries
 # ---------
@@ -52,10 +52,10 @@ SOURCES_CPP	:= $(shell find -L $(SOURCEDIRS) -name "*.cpp")
 # Compiler and linker flags
 # -------------------------
 
-WARNFLAGS_C	:= -Wall -Wno-unused-result -Wno-misleading-indentation
+WARNFLAGS_C	:= -Wall -Wextra
 
-WARNFLAGS_CXX	:= -Wall -Wno-unused-result -Wno-misleading-indentation \
-		   -Wno-class-memaccess -Wno-format -Wno-stringop-truncation
+WARNFLAGS_CXX	:= -Wall -Wextra -Wno-unused-result -Wno-class-memaccess \
+		   -Wno-stringop-truncation
 
 ifeq ($(SOURCES_CPP),)
     LD	:= $(CC)

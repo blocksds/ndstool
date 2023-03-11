@@ -172,7 +172,7 @@ int CopyFromElf(char *elfFilename,         unsigned int *entry,
 			*ram_address = p_headers[i].p_paddr;
 		else if(p_headers[i].p_paddr != expected_address) {
 			char errormsg[512];
-			snprintf(errormsg,512,"PHDR %u paddr expected at 0x%08X, got 0x%08X", i, expected_address, p_headers[i].p_paddr);
+			snprintf(errormsg,512,"PHDR %u paddr expected at 0x%08X, got 0x%08X", i, expected_address, (unsigned int)p_headers[i].p_paddr);
 			die(errormsg);
 		}
 

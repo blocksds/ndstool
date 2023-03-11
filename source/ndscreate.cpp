@@ -300,8 +300,7 @@ void GetDefaultArm7(char* buffer, size_t size)
 		exit(1);
 	}
 
-	strncpy(buffer, devkitProPATH, size);
-	strncat(buffer, "/libnds/default.elf", size);
+	snprintf(buffer, size, "%s/libnds/default.elf", devkitProPATH);
 }
 
 /*
@@ -401,10 +400,10 @@ void Create()
 		memcpy(&header.offset_0xAC, "PASS01\x96", 7);		// automatically start with FlashMe, make it look more like a GBA rom
 	}
 
-	// override default title/game/maker codes
-	if (title) strncpy(header.title, title, 12);
-	if (gamecode) strncpy(header.gamecode, gamecode, 4);
-	if (makercode) strncpy((char *)header.makercode, makercode, 2);
+	// override default title/game/maker codes. They don't need to be NUL-terminated.
+	if (title) strncpy(header.title, title, sizeof(header.title));
+	if (gamecode) strncpy(header.gamecode, gamecode, sizeof(header.gamecode));
+	if (makercode) strncpy((char *)header.makercode, makercode, sizeof(header.makercode));
 	header.romversion = (romversion & 0xff);
 
 	// --------------------------

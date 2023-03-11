@@ -124,7 +124,8 @@ void ShowHeaderInfo(Header &header, int romType, unsigned int length = 0x200)
 	printf("0x00\t%-25s\t", "Game title");
 
 	for (unsigned int i=0; i<sizeof(header.title); i++)
-		if (header.title[i]) putchar(header.title[i]); printf("\n");
+		if (header.title[i]) putchar(header.title[i]);
+	printf("\n");
 
 	printf("0x0C\t%-25s\t", "Game code");
 	for (unsigned int i=0; i<sizeof(header.gamecode); i++)
@@ -334,6 +335,8 @@ void Arm7Sha1(FILE *fNDS, unsigned char *arm7_sha1)
  */
 int CompareSha1WithList(unsigned char *arm7_sha1, const unsigned char *text, unsigned int textSize)
 {
+	(void)textSize;
+
 	while (1)
 	{
 		//printf("\n");
