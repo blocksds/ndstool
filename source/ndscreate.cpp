@@ -284,23 +284,15 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
  */
 void GetDefaultArm7(char* buffer, size_t size)
 {
-	char *devkitProPATH;
-	devkitProPATH = getenv("DEVKITPRO");
+	char *blocksds_path;
+	blocksds_path = getenv("BLOCKSDS");
 
-	#ifdef __WIN32__
-	// convert to standard windows path
-	if ( devkitProPATH && devkitProPATH[0] == '/' ) {
-		devkitProPATH[0] = devkitProPATH[1];
-		devkitProPATH[1] = ':';
-	}
-	#endif
-
-	if (!devkitProPATH) {
-		fprintf(stderr,"No arm7 specified and DEVKITPRO missing from environment!\n");
+	if (!blocksds_path) {
+		fprintf(stderr,"No arm7 specified and BLOCKSDS missing from environment!\n");
 		exit(1);
 	}
 
-	snprintf(buffer, size, "%s/libnds/default.elf", devkitProPATH);
+	snprintf(buffer, size, "%s/sys/default_arm7/arm7.elf", blocksds_path);
 }
 
 /*
