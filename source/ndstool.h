@@ -40,6 +40,7 @@ extern char *ndsfilename;
 extern char *arm7filename;
 extern char *arm9filename;
 extern char *filerootdir;
+extern char *fatimagepath;
 extern char *overlaydir;
 extern char *arm7ovltablefilename;
 extern char *arm9ovltablefilename;

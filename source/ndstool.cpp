@@ -27,6 +27,7 @@ char *arm9filename = 0;
 char *arm7ifilename = 0;
 char *arm9ifilename = 0;
 char *filerootdir = 0;
+char *fatimagepath = 0;
 char *overlaydir = 0;
 char *arm7ovltablefilename = 0;
 char *arm9ovltablefilename = 0;
@@ -111,6 +112,7 @@ HelpLine helplines[] =
 	{"y9",	"  ARM9 overlay table\n-y9 file.bin"},
 	{"y7",	"  ARM7 overlay table\n-y7 file.bin"},
 	{"d",	"  Data files\n-d directory"},
+	{"F",	"  FAT image\n-F image.bin"},
 	{"y",	"  Overlay files\n-y directory"},
 	{"b",	"  Banner bitmap/text\n-b file.bmp \"text;text;text\"\nThe three lines are shown at different sizes."},
 	{"t",	"  Banner binary\n-t file.bin"},
@@ -265,6 +267,9 @@ int main(int argc, char *argv[])
 
 				// file root directory
 				case 'd': REQUIRED(filerootdir); break;
+
+				// FAT image
+				case 'F': REQUIRED(fatimagepath); break;
 
 				// ARM7 filename
 				case '7': 
