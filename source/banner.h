@@ -19,30 +19,8 @@ struct Banner
 
 extern const char *bannerLanguages[];
 
-static inline int GetBannerLanguageCount(unsigned short version)
-{
-	switch (version)
-	{
-		default:
-		case 0x0001: return 6;
-		case 0x0002: return 7;
-		case 0x0003:
-		case 0x0103: return 8;
-	}
-}
-
-static inline unsigned int CalcBannerSize(unsigned short version)
-{
-	switch (version)
-	{
-		default:     version = 1; /* fallthrough */
-		case 0x0001:
-		case 0x0002:
-		case 0x0003: return 0x840 + 0x100 * (version - 1);
-		case 0x0103: return 0x23C0;
-	}
-};
-
+int GetBannerLanguageCount(unsigned short version);
+unsigned int CalcBannerSize(unsigned short version);
 unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot);
 unsigned short CalcBannerCRC(Banner &banner, unsigned short slot);
 void IconFromBMP();

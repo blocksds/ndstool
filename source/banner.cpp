@@ -48,6 +48,30 @@ unsigned short CalcBannerCRC(Banner &banner, unsigned short slot)
 	}
 }
 
+int GetBannerLanguageCount(unsigned short version)
+{
+	switch (version)
+	{
+		default:
+		case 0x0001: return 6;
+		case 0x0002: return 7;
+		case 0x0003:
+		case 0x0103: return 8;
+	}
+}
+
+unsigned int CalcBannerSize(unsigned short version)
+{
+	switch (version)
+	{
+		default:     version = 1; /* fallthrough */
+		case 0x0001:
+		case 0x0002:
+		case 0x0003: return 0x840 + 0x100 * (version - 1);
+		case 0x0103: return 0x23C0;
+	}
+};
+
 void BannerPutTitle(const char *text, Banner &banner)
 {
 	// convert initial title
