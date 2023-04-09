@@ -2,8 +2,9 @@
 #include "raster.h"
 #include "banner.h"
 #include "crc.h"
+#include "utf16.h"
 
-const char *bannerLanguages[] = { "Japanese", "English", "French", "German", "Italian", "Spanish" };
+const char *bannerLanguages[] = { "Japanese", "English", "French", "German", "Italian", "Spanish", "Chinese", "Korean" };
 
 #define RGB16(r,g,b)			((r) | (g<<5) | (b<<10))
 
@@ -18,12 +19,84 @@ inline unsigned short RGBQuadToRGB16(RGBQUAD quad)
 	return RGB16(r>>3, g>>3, b>>3);
 }
 
-/*
- * CalcBannerCRC
- */
-unsigned short CalcBannerCRC(Banner &banner)
+unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot)
 {
-	return CalcCrc16((unsigned char *)&banner + 32, 0x840 - 32);
+	switch(slot)
+	{
+		case 0: return 0x0001;
+		case 1: return 0x0002;
+		case 2: return 0x0003;
+		case 3: return 0x0103;
+		default: return 0xFFFF;
+	}
+}
+
+unsigned short CalcBannerCRC(Banner &banner, unsigned short slot)
+{
+	if (banner.version < GetBannerMinVersionForCRCSlot(slot))
+	{
+		return 0;
+	}
+
+	switch(slot)
+	{
+		case 0: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0001) - 0x20);
+		case 1: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0002) - 0x20);
+		case 2: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0003) - 0x20);
+		case 3: return CalcCrc16((unsigned char *)&banner + 0x1240, CalcBannerSize(0x0103) - 0x1240);
+		default: return 0;
+	}
+}
+
+int GetBannerLanguageCount(unsigned short version)
+{
+	switch (version)
+	{
+		default:
+		case 0x0001: return 6;
+		case 0x0002: return 7;
+		case 0x0003:
+		case 0x0103: return 8;
+	}
+}
+
+unsigned int CalcBannerSize(unsigned short version)
+{
+	switch (version)
+	{
+		default:     version = 1; /* fallthrough */
+		case 0x0001:
+		case 0x0002:
+		case 0x0003: return 0x840 + 0x100 * (version - 1);
+		case 0x0103: return 0x23C0;
+	}
+};
+
+void BannerPutTitle(const char *text, Banner &banner)
+{
+	// convert initial title
+	if (!utf16_convert_from_system(text, 0, banner.title[0], BANNER_TITLE_LENGTH * 2))
+	{
+		fprintf(stderr, "WARNING: UTF-16 conversion failed, using fallback.\n");
+		for (int i=0; bannertext[i] && (i<BANNER_TITLE_LENGTH); i++)
+		{
+			banner.title[0][i] = bannertext[i];
+		}
+	}
+	banner.title[0][BANNER_TITLE_LENGTH-1] = 0;
+
+	// convert ; to newline
+	for (int i=0; banner.title[0][i]; i++)
+	{
+		if (banner.title[0][i] == ';')
+			banner.title[0][i] = 0x0A;
+	}
+
+	// copy to other languages
+	for (int l=1; l<GetBannerLanguageCount(banner.version); l++)
+	{
+		memcpy(banner.title[l], banner.title[0], sizeof(banner.title[0]));
+	}
 }
 
 /*
@@ -91,21 +164,13 @@ void IconFromBMP()
 		banner.palette[i] = RGBQuadToRGB16(bmp.palette[i]);
 	}
 
-	// put title
-	for (int i=0; bannertext[i]; i++)
+	BannerPutTitle(bannertext, banner);
+	for (int slot=0; slot<4; slot++)
 	{
-		char c = bannertext[i];
-		if (c == ';') c = 0x0A;
-		for (int l=0; l<6; l++)
-		{
-			banner.title[l][i] = c;
-		}
+		banner.crc[slot] = CalcBannerCRC(banner, slot);
 	}
-	
-	// calculate CRC
-	banner.crc = CalcBannerCRC(banner);
 
-	fwrite(&banner, 1, sizeof(banner), fNDS);
+	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
 }
 
 /*
@@ -251,15 +316,7 @@ void IconFromGRF() {
 	banner.version = 1;
 	
 	// put title
-	for (int i=0; bannertext[i]; i++)
-	{
-		char c = bannertext[i];
-		if (c == ';') c = 0x0A;
-		for (int l=0; l<6; l++)
-		{
-			banner.title[l][i] = c;
-		}
-	}
+	BannerPutTitle(bannertext, banner);
 	
 	// put Gfx Data
 	memcpy(banner.tile_data, &GfxData[1], 32*16);
@@ -268,10 +325,13 @@ void IconFromGRF() {
 	memcpy(banner.palette, &PalData[1], 16*2);
 	
 	// calculate CRC
-	banner.crc = CalcBannerCRC(banner);
+	for (int slot=0; slot<4; slot++)
+	{
+		banner.crc[slot] = CalcBannerCRC(banner, slot);
+	}
 	
 	// write to file
-	fwrite(&banner, 1, sizeof(banner), fNDS);
+	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
 	
 	// free Memory
 	free(GrfData);
