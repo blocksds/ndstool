@@ -551,9 +551,18 @@ void ShowInfo(char *ndsfilename)
 		fseek(fNDS, header.banner_offset, SEEK_SET);
 		if (fread(&banner, 1, sizeof(banner), fNDS))
 		{
-			unsigned short banner_crc = CalcBannerCRC(banner);
 			printf("\n");
-			printf("Banner CRC:                     \t0x%04X (%s)\n", (int)banner.crc, (banner_crc == banner.crc) ? "OK" : "INVALID");
+			for (int slot = 0; slot < 4; slot++)
+			{
+				unsigned short min_version = GetBannerMinVersionForCRCSlot(slot);
+				unsigned short banner_crc = CalcBannerCRC(banner, slot);
+				printf("Banner CRC %d:                   \t0x%04X", slot, (int)banner.crc[slot]);
+				if (banner.version >= min_version)
+				{
+					printf(" (%s)", (banner_crc == banner.crc[slot]) ? "OK" : "INVALID");
+				}
+				printf("\n");
+			}
 
 			for (int language=0; language<GetBannerLanguageCount(banner.version); language++)
 			{

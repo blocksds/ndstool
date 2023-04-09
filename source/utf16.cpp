@@ -29,12 +29,12 @@ bool utf16_convert_from_system(const char *in, size_t in_len, unsigned_short *ou
 	utf16_iconv_init();
 	if (in_len == 0) in_len = strlen(in) + 1;
 
-	return iconv(iconv_utf16_from_system, (char**)&in, &in_len, (char**)&out, &out_len) >= 0;
+	return iconv(iconv_utf16_from_system, (char**)&in, &in_len, (char**)&out, &out_len) != (size_t) -1;
 }
 
 bool utf16_convert_to_system(unsigned_short *in, size_t in_len, char *out, size_t out_len) {
 	utf16_iconv_init();
 	if (in_len == 0) in_len = (utf16_wstrlen(in) + 1) * 2;
 
-	return iconv(iconv_utf16_to_system, (char**)&in, &in_len, (char**)&out, &out_len) >= 0;
+	return iconv(iconv_utf16_to_system, (char**)&in, &in_len, (char**)&out, &out_len) != (size_t) -1;
 }

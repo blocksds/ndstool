@@ -19,12 +19,33 @@ inline unsigned short RGBQuadToRGB16(RGBQUAD quad)
 	return RGB16(r>>3, g>>3, b>>3);
 }
 
-/*
- * CalcBannerCRC
- */
-unsigned short CalcBannerCRC(Banner &banner)
+unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot)
 {
-	return CalcCrc16((unsigned char *)&banner + 32, CalcBannerSize(banner.version) - 32);
+	switch(slot)
+	{
+		case 0: return 0x0001;
+		case 1: return 0x0002;
+		case 2: return 0x0003;
+		case 3: return 0x0103;
+		default: return 0xFFFF;
+	}
+}
+
+unsigned short CalcBannerCRC(Banner &banner, unsigned short slot)
+{
+	if (banner.version < GetBannerMinVersionForCRCSlot(slot))
+	{
+		return 0;
+	}
+
+	switch(slot)
+	{
+		case 0: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0001) - 0x20);
+		case 1: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0002) - 0x20);
+		case 2: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0003) - 0x20);
+		case 3: return CalcCrc16((unsigned char *)&banner + 0x1240, CalcBannerSize(0x0103) - 0x1240);
+		default: return 0;
+	}
 }
 
 void BannerPutTitle(const char *text, Banner &banner)
@@ -97,9 +118,12 @@ void IconFromBMP()
 	}
 
 	BannerPutTitle(bannertext, banner);
-	banner.crc = CalcBannerCRC(banner);
+	for (int slot=0; slot<4; slot++)
+	{
+		banner.crc[slot] = CalcBannerCRC(banner, slot);
+	}
 
-	fwrite(&banner, 1, sizeof(banner), fNDS);
+	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
 }
 
 /*
@@ -254,10 +278,13 @@ void IconFromGRF() {
 	memcpy(banner.palette, &PalData[1], 16*2);
 	
 	// calculate CRC
-	banner.crc = CalcBannerCRC(banner);
+	for (int slot=0; slot<4; slot++)
+	{
+		banner.crc[slot] = CalcBannerCRC(banner, slot);
+	}
 	
 	// write to file
-	fwrite(&banner, 1, sizeof(banner), fNDS);
+	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
 	
 	// free Memory
 	free(GrfData);

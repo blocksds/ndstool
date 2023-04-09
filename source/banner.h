@@ -5,8 +5,7 @@
 struct Banner
 {
 	unsigned_short version;
-	unsigned_short crc;
-	unsigned char reserved[28];
+	unsigned_short crc[15];
 	unsigned char tile_data[4][4][8][4];
 	unsigned_short palette[16];
 	unsigned_short title[16][BANNER_TITLE_LENGTH];		// max. 3 lines. seperated by linefeed character
@@ -44,6 +43,7 @@ static inline unsigned int CalcBannerSize(unsigned short version)
 	}
 };
 
-unsigned short CalcBannerCRC(Banner &banner);
+unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot);
+unsigned short CalcBannerCRC(Banner &banner, unsigned short slot);
 void IconFromBMP();
 void IconFromGRF();
