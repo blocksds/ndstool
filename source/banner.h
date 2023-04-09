@@ -28,5 +28,6 @@ static inline unsigned int CalcBannerSize(unsigned short version)
 
 int InsertTitleString(char *String, FILE *file);
 unsigned short CalcBannerCRC(Banner &banner);
+void FixBannerCRC(char *ndsfilename);
 void IconFromBMP();
 void IconFromGRF();

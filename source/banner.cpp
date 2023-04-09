@@ -27,6 +27,29 @@ unsigned short CalcBannerCRC(Banner &banner)
 }
 
 /*
+ * FixBannerCRC
+ */
+void FixBannerCRC(char *ndsfilename)
+{
+	fNDS = fopen(ndsfilename, "r+b");
+	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+	fread(&header, 512, 1, fNDS);
+
+	// banner info
+	if (header.banner_offset)
+	{
+		Banner banner;
+		fseek(fNDS, header.banner_offset, SEEK_SET);
+		if (fread(&banner, 1, sizeof(banner), fNDS)) {
+			banner.crc = CalcBannerCRC(banner);
+	        fseek(fNDS, header.banner_offset, SEEK_SET);
+	        fwrite(&banner, sizeof(banner), 1, fNDS);
+		}
+	}
+	fclose(fNDS);
+}
+
+/*
  * IconFromBMP
  */
 void IconFromBMP()
