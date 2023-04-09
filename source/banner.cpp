@@ -4,6 +4,9 @@
 #include "crc.h"
 #include "utf16.h"
 
+unsigned int GetBannerStartCRCSlot(unsigned short slot);
+void InsertBannerCRC(Banner &banner, unsigned int bannersize);
+
 const char *bannerLanguages[] = { "Japanese", "English", "French", "German", "Italian", "Spanish", "Chinese", "Korean" };
 
 #define RGB16(r,g,b)			((r) | (g<<5) | (b<<10))
@@ -27,25 +30,45 @@ unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot)
 		case 1: return 0x0002;
 		case 2: return 0x0003;
 		case 3: return 0x0103;
-		default: return 0xFFFF;
+		default: return BAD_MIN_VERSION_CRC;
 	}
 }
 
-unsigned short CalcBannerCRC(Banner &banner, unsigned short slot)
+unsigned int GetBannerStartCRCSlot(unsigned short slot)
 {
-	if (banner.version < GetBannerMinVersionForCRCSlot(slot))
-	{
-		return 0;
-	}
-
 	switch(slot)
 	{
-		case 0: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0001) - 0x20);
-		case 1: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0002) - 0x20);
-		case 2: return CalcCrc16((unsigned char *)&banner + 0x20, CalcBannerSize(0x0003) - 0x20);
-		case 3: return CalcCrc16((unsigned char *)&banner + 0x1240, CalcBannerSize(0x0103) - 0x1240);
+		case 0:
+		case 1:
+		case 2: return 0x20;
+		case 3: return 0x1240;
 		default: return 0;
 	}
+}
+
+unsigned short CalcBannerCRC(Banner &banner, unsigned short slot, unsigned int bannersize)
+{
+    unsigned short banner_min_version = GetBannerMinVersionForCRCSlot(slot);
+
+	if (banner_min_version == BAD_MIN_VERSION_CRC || banner.version < banner_min_version)
+		return 0;
+
+	unsigned int bannersize_used = CalcBannerSize(banner_min_version);
+    unsigned int bannercrc_start = GetBannerStartCRCSlot(slot);
+
+	if (bannersize < bannersize_used)
+		bannersize_used = bannersize;
+
+	if (bannercrc_start == 0 || bannersize_used < bannercrc_start)
+		return 0;
+
+	return CalcCrc16((unsigned char *)&banner + bannercrc_start, bannersize_used - bannercrc_start);
+}
+
+void InsertBannerCRC(Banner &banner, unsigned int bannersize)
+{
+	for (int slot = 0; slot < NUM_VERSION_CRCS; slot++)
+		banner.crc[slot] = CalcBannerCRC(banner, slot, bannersize);
 }
 
 int GetBannerLanguageCount(unsigned short version)
@@ -99,24 +122,32 @@ void BannerPutTitle(const char *text, Banner &banner)
 	}
 }
 
+unsigned short ExtractBannerVersion(FILE *fNDS, unsigned int banner_offset)
+{
+	fseek(fNDS, banner_offset, SEEK_SET);
+	unsigned short version;
+	fread(&version, sizeof(version), 1, fNDS);
+	return version;
+}
+
 /*
  * FixBannerCRC
  */
-void FixBannerCRC(char *ndsfilename)
+void FixBannerCRC(char *ndsfilename, unsigned int banner_offset, unsigned int bannersize)
 {
 	fNDS = fopen(ndsfilename, "r+b");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
-	fread(&header, 512, 1, fNDS);
 
 	// banner info
-	if (header.banner_offset)
+	if (banner_offset)
 	{
 		Banner banner;
-		fseek(fNDS, header.banner_offset, SEEK_SET);
-		if (fread(&banner, 1, sizeof(banner), fNDS)) {
-			banner.crc = CalcBannerCRC(banner);
-			fseek(fNDS, header.banner_offset, SEEK_SET);
-			fwrite(&banner, sizeof(banner), 1, fNDS);
+		memset(&banner, 0, sizeof(banner));
+		fseek(fNDS, banner_offset, SEEK_SET);
+		if (fread(&banner, 1, bannersize, fNDS)) {
+			InsertBannerCRC(banner, bannersize);
+			fseek(fNDS, banner_offset, SEEK_SET);
+			fwrite(&banner, bannersize, 1, fNDS);
 		}
 	}
 	fclose(fNDS);
@@ -165,10 +196,7 @@ void IconFromBMP()
 	}
 
 	BannerPutTitle(bannertext, banner);
-	for (int slot=0; slot<4; slot++)
-	{
-		banner.crc[slot] = CalcBannerCRC(banner, slot);
-	}
+	InsertBannerCRC(banner, CalcBannerSize(banner.version));
 
 	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
 }
@@ -325,10 +353,7 @@ void IconFromGRF() {
 	memcpy(banner.palette, &PalData[1], 16*2);
 	
 	// calculate CRC
-	for (int slot=0; slot<4; slot++)
-	{
-		banner.crc[slot] = CalcBannerCRC(banner, slot);
-	}
+	InsertBannerCRC(banner, CalcBannerSize(banner.version));
 	
 	// write to file
 	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);

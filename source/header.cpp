@@ -533,6 +533,27 @@ void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
 	}
 }
 
+unsigned int FullyReadHeader(FILE *fNDS, Header &header) {
+	unsigned int headersize = 0x200;
+	fseek(fNDS, 0, SEEK_SET);
+	fread(&header, 1, headersize, fNDS);
+
+	if (header.unitcode & 2) { // DSi application
+		fseek(fNDS, 0, SEEK_SET);
+		fread((char*)&header, 1, sizeof(Header), fNDS);
+		headersize = sizeof(Header);
+	}
+
+	return headersize;
+}
+
+unsigned int GetBannerSizeFromHeader(Header &header, unsigned short banner_version) {
+	if (header.unitcode & 2) // DSi application
+		return header.banner_size;
+	else
+		return CalcBannerSize(banner_version);
+}
+
 /*
  * ShowInfo
  */
@@ -540,27 +561,29 @@ void ShowInfo(char *ndsfilename)
 {
 	fNDS = fopen(ndsfilename, "rb");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
-	fread(&header, 512, 1, fNDS);
+	FullyReadHeader(fNDS, header);
 
 	int romType = DetectRomType();
 
 	printf("Header information:\n");
 	ShowHeaderInfo(header, romType);
 
+	unsigned int bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
+
 	// banner info
 	if (header.banner_offset)
 	{
 		Banner banner;
 		fseek(fNDS, header.banner_offset, SEEK_SET);
-		if (fread(&banner, 1, sizeof(banner), fNDS))
+		if (fread(&banner, 1, bannersize, fNDS))
 		{
 			printf("\n");
-			for (int slot = 0; slot < 4; slot++)
+			for (int slot = 0; slot < NUM_VERSION_CRCS; slot++)
 			{
 				unsigned short min_version = GetBannerMinVersionForCRCSlot(slot);
-				unsigned short banner_crc = CalcBannerCRC(banner, slot);
+				unsigned short banner_crc = CalcBannerCRC(banner, slot, bannersize);
 				printf("Banner CRC %d:                   \t0x%04X", slot, (int)banner.crc[slot]);
-				if (banner.version >= min_version)
+				if (min_version != BAD_MIN_VERSION_CRC && banner.version >= min_version)
 				{
 					printf(" (%s)", (banner_crc == banner.crc[slot]) ? "OK" : "INVALID");
 				}

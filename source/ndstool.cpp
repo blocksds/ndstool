@@ -483,24 +483,19 @@ int main(int argc, char *argv[])
 				break;
 
 			case ACTION_FIXBANNERCRC:
-				FixBannerCRC(ndsfilename);
+				fNDS = fopen(ndsfilename, "rb");
+				if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+				FullyReadHeader(fNDS, header);
+				bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
+				fclose(fNDS);
+				FixBannerCRC(ndsfilename, header.banner_offset, bannersize);
 				break;
 
 			case ACTION_EXTRACT: {
-				unsigned int headersize = 0x200;
 				fNDS = fopen(ndsfilename, "rb");
 				if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
-				fread(&header, 1, headersize, fNDS);
-				if (header.unitcode & 2) { // DSi application
-					fread((char*)&header + headersize, 1, sizeof(Header) - headersize, fNDS);
-					headersize = sizeof(Header);
-					bannersize = header.banner_size;
-				} else {
-					fseek(fNDS, header.banner_offset, SEEK_SET);
-					unsigned_short version;
-					fread(&version, sizeof(version), 1, fNDS);
-					bannersize = CalcBannerSize(version);
-				}
+				unsigned int headersize = FullyReadHeader(fNDS, header);
+				bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
 				fclose(fNDS);
 
 				if (arm9filename) Extract(arm9filename, true, 0x20, true, 0x2C, true);
