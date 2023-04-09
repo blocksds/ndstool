@@ -4,6 +4,7 @@
 #include "crc.h"
 #include "bigint.h"
 #include "encryption.h"
+#include "utf16.h"
 
 /*
  * Data
@@ -121,6 +122,8 @@ void FixHeaderCRC(char *ndsfilename)
  */
 void ShowHeaderInfo(Header &header, int romType, unsigned int length = 0x200)
 {
+	bool isTwl = header.unitcode & 0x02;
+
 	printf("0x00\t%-25s\t", "Game title");
 
 	for (unsigned int i=0; i<sizeof(header.title); i++)
@@ -159,7 +162,8 @@ void ShowHeaderInfo(Header &header, int romType, unsigned int length = 0x200)
 	printf("0x13\t%-25s\t0x%02X\n", "Device type", header.devicetype);
 	printf("0x14\t%-25s\t0x%02X (%d Mbit)\n", "Device capacity", header.devicecap, 1<<header.devicecap);
 	printf("0x15\t%-25s\t", "reserved 1"); for (unsigned int i=0; i<sizeof(header.reserved1); i++) printf("%02X", header.reserved1[i]); printf("\n");
-	printf("0x1E\t%-25s\t0x%02X\n", "ROM version", header.romversion);
+	if(isTwl) printf("0x1C\t%-25s\t0x%02X\n", "TWL flags", header.dsi_flags);
+	printf("0x1D\t%-25s\t0x%02X\n", isTwl ? "?" : "Region", header.nds_region);
 	printf("0x1F\t%-25s\t0x%02X\n", "reserved 2", header.reserved2);
 	printf("0x20\t%-25s\t0x%X\n", "ARM9 ROM offset", (int)header.arm9_rom_offset);
 	printf("0x24\t%-25s\t0x%X\n", "ARM9 entry address", (int)header.arm9_entry_address);
@@ -550,35 +554,61 @@ void ShowInfo(char *ndsfilename)
 		fseek(fNDS, header.banner_offset, SEEK_SET);
 		if (fread(&banner, 1, sizeof(banner), fNDS))
 		{
-			unsigned short banner_crc = CalcBannerCRC(banner);
 			printf("\n");
-			printf("Banner CRC:                     \t0x%04X (%s)\n", (int)banner.crc, (banner_crc == banner.crc) ? "OK" : "INVALID");
-	
-			for (int language=1; language<=1; language++)
+			for (int slot = 0; slot < 4; slot++)
+			{
+				unsigned short min_version = GetBannerMinVersionForCRCSlot(slot);
+				unsigned short banner_crc = CalcBannerCRC(banner, slot);
+				printf("Banner CRC %d:                   \t0x%04X", slot, (int)banner.crc[slot]);
+				if (banner.version >= min_version)
+				{
+					printf(" (%s)", (banner_crc == banner.crc[slot]) ? "OK" : "INVALID");
+				}
+				printf("\n");
+			}
+
+			for (int language=0; language<GetBannerLanguageCount(banner.version); language++)
 			{
 				int line = 1;
-				bool nextline = true;
-				for (int i=0; i<128; i++)
+
+				unsigned_short line_utf16[BANNER_TITLE_LENGTH];
+				char line_system[BANNER_TITLE_LENGTH * 5];
+				char line_fallback[BANNER_TITLE_LENGTH];
+				int line_idx = 0;
+
+				line_utf16[0] = 0;
+				line_fallback[0] = 0;
+
+				for (int i=0; i<BANNER_TITLE_LENGTH; i++)
 				{
 					unsigned short c = banner.title[language][i];
-					if (c >= 128) c = '_';
-					if (c == 0x00) { printf("\n"); break; }
-					if (c == 0x0A)
+
+					if (c == 0x0A || c == 0x00)
 					{
-						nextline = true;
+						// next line (0x0A) or end of text (0x00)
+						printf("%s banner text, line %d:", bannerLanguages[language], line);
+						for (unsigned int i=0; i<11 - strlen(bannerLanguages[language]); i++) putchar(' ');
+						bool convert_success = utf16_convert_to_system(
+							line_utf16, BANNER_TITLE_LENGTH * 2,
+							line_system, sizeof(line_system)
+						);
+						printf("\t%s\n", convert_success ? line_system : line_fallback);
+
+						if (c == 0x00) break;
+						line++;
+						line_idx = 0;
+
+						line_utf16[0] = 0;
+						line_fallback[0] = 0;
 					}
 					else
 					{
-						if (nextline)
-						{
-							if (line != 1) printf("\n");
-							printf("%s banner text, line %d:", bannerLanguages[language], line);
-							for (unsigned int i=0; i<11 - strlen(bannerLanguages[language]); i++) putchar(' ');
-							printf("\t");
-							nextline = false;
-							line++;
-						}
-						putchar(c);
+						// populate line data
+						line_utf16[line_idx] = c;
+						line_utf16[line_idx + 1] = 0;
+						line_fallback[line_idx] = (c >= 128) ? '_' : c;
+						line_fallback[line_idx + 1] = 0;
+						line_idx++;
 					}
 				}
 			}
