@@ -42,8 +42,8 @@ void FixBannerCRC(char *ndsfilename)
 		fseek(fNDS, header.banner_offset, SEEK_SET);
 		if (fread(&banner, 1, sizeof(banner), fNDS)) {
 			banner.crc = CalcBannerCRC(banner);
-	        fseek(fNDS, header.banner_offset, SEEK_SET);
-	        fwrite(&banner, sizeof(banner), 1, fNDS);
+			fseek(fNDS, header.banner_offset, SEEK_SET);
+			fwrite(&banner, sizeof(banner), 1, fNDS);
 		}
 	}
 	fclose(fNDS);
