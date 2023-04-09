@@ -48,13 +48,13 @@ unsigned int GetBannerStartCRCSlot(unsigned short slot)
 
 unsigned short CalcBannerCRC(Banner &banner, unsigned short slot, unsigned int bannersize)
 {
-    unsigned short banner_min_version = GetBannerMinVersionForCRCSlot(slot);
+	unsigned short banner_min_version = GetBannerMinVersionForCRCSlot(slot);
 
 	if (banner_min_version == BAD_MIN_VERSION_CRC || banner.version < banner_min_version)
 		return 0;
 
 	unsigned int bannersize_used = CalcBannerSize(banner_min_version);
-    unsigned int bannercrc_start = GetBannerStartCRCSlot(slot);
+	unsigned int bannercrc_start = GetBannerStartCRCSlot(slot);
 
 	if (bannersize < bannersize_used)
 		bannersize_used = bannersize;
