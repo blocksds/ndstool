@@ -2,8 +2,9 @@
 #include "raster.h"
 #include "banner.h"
 #include "crc.h"
+#include "utf16.h"
 
-const char *bannerLanguages[] = { "Japanese", "English", "French", "German", "Italian", "Spanish" };
+const char *bannerLanguages[] = { "Japanese", "English", "French", "German", "Italian", "Spanish", "Chinese", "Korean" };
 
 #define RGB16(r,g,b)			((r) | (g<<5) | (b<<10))
 
@@ -23,7 +24,34 @@ inline unsigned short RGBQuadToRGB16(RGBQUAD quad)
  */
 unsigned short CalcBannerCRC(Banner &banner)
 {
-	return CalcCrc16((unsigned char *)&banner + 32, 0x840 - 32);
+	return CalcCrc16((unsigned char *)&banner + 32, CalcBannerSize(banner.version) - 32);
+}
+
+void BannerPutTitle(const char *text, Banner &banner)
+{
+	// convert initial title
+	if (!utf16_convert_from_system(text, 0, banner.title[0], BANNER_TITLE_LENGTH * 2))
+	{
+		fprintf(stderr, "WARNING: UTF-16 conversion failed, using fallback.\n");
+		for (int i=0; bannertext[i] && (i<BANNER_TITLE_LENGTH); i++)
+		{
+			banner.title[0][i] = bannertext[i];
+		}
+	}
+	banner.title[0][BANNER_TITLE_LENGTH-1] = 0;
+
+	// convert ; to newline
+	for (int i=0; banner.title[0][i]; i++)
+	{
+		if (banner.title[0][i] == ';')
+			banner.title[0][i] = 0x0A;
+	}
+
+	// copy to other languages
+	for (int l=1; l<GetBannerLanguageCount(banner.version); l++)
+	{
+		memcpy(banner.title[l], banner.title[0], sizeof(banner.title[0]));
+	}
 }
 
 /*
@@ -68,18 +96,7 @@ void IconFromBMP()
 		banner.palette[i] = RGBQuadToRGB16(bmp.palette[i]);
 	}
 
-	// put title
-	for (int i=0; bannertext[i]; i++)
-	{
-		char c = bannertext[i];
-		if (c == ';') c = 0x0A;
-		for (int l=0; l<6; l++)
-		{
-			banner.title[l][i] = c;
-		}
-	}
-	
-	// calculate CRC
+	BannerPutTitle(bannertext, banner);
 	banner.crc = CalcBannerCRC(banner);
 
 	fwrite(&banner, 1, sizeof(banner), fNDS);
@@ -228,15 +245,7 @@ void IconFromGRF() {
 	banner.version = 1;
 	
 	// put title
-	for (int i=0; bannertext[i]; i++)
-	{
-		char c = bannertext[i];
-		if (c == ';') c = 0x0A;
-		for (int l=0; l<6; l++)
-		{
-			banner.title[l][i] = c;
-		}
-	}
+	BannerPutTitle(bannertext, banner);
 	
 	// put Gfx Data
 	memcpy(banner.tile_data, &GfxData[1], 32*16);
