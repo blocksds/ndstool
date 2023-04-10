@@ -57,7 +57,7 @@ struct RasterImage
 {
 	int width, height, frames, components;
 	unsigned char *data; // Format depends on components (see get_pixel, stb_image.h)
-	int *delays; // 1/60 second units
+	int *delays; // 1/1000 second units
 	unsigned int palette_count[RASTER_MAX_FRAME_COUNT];
 	unsigned int palette[RASTER_MAX_FRAME_COUNT][RASTER_MAX_PALETTE_SIZE]; // Format matches components
 	bool has_palette;

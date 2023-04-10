@@ -221,15 +221,17 @@ static void IconRasterToBanner(const RasterImage &bmp, int frame, unsigned char 
 	}
 }
 
-static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int delay, bool flip_h, bool flip_v)
+static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int in_delay, bool flip_h, bool flip_v)
 {
+	// convert from 1/1000 to 1/60 units
+	int delay = (in_delay + 9) * 1000 / 16667;
 	if (delay < 1)
 	{
 		delay = 1;
 	}
 	else if (delay > 255)
 	{
-		fprintf(stderr, "Warning: Frame %d delay %d too long - shortened to 255.\n", frame, delay);
+		fprintf(stderr, "Warning: Frame %d delay %d frames (%d ms) too long - shortened to 255 frames.\n", frame, delay, in_delay);
 		delay = 255;
 	}
 	return delay | (frame_entry << 8) | (frame_entry << 11) | (flip_h ? (1 << 14) : 0) | (flip_v ? (1 << 15) : 0);
