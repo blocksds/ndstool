@@ -9,19 +9,6 @@ void InsertBannerCRC(Banner &banner, unsigned int bannersize);
 
 const char *bannerLanguages[] = { "Japanese", "English", "French", "German", "Italian", "Spanish", "Chinese", "Korean" };
 
-#define RGB16(r,g,b)			((r) | (g<<5) | (b<<10))
-
-/*
- * RGBQuadToRGB16
- */
-inline unsigned short RGBQuadToRGB16(RGBQUAD quad)
-{
-	unsigned short r = quad.rgbRed;
-	unsigned short g = quad.rgbGreen;
-	unsigned short b = quad.rgbBlue;
-	return RGB16(r>>3, g>>3, b>>3);
-}
-
 unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot)
 {
 	switch(slot)
@@ -155,26 +142,53 @@ void FixBannerCRC(char *ndsfilename, unsigned int banner_offset, unsigned int ba
 	fclose(fNDS);
 }
 
-/*
- * IconFromBMP
- */
-void IconFromBMP()
+static bool IconPrepareValidateBMP(RasterImage &bmp, bool force_zero_transparent)
 {
-	CRaster bmp;
-	int rval = bmp.LoadBMP(bannerfilename);
-	if (rval < 0) exit(1);
-
-	if (bmp.width != 32 || bmp.height != 32) {
-		fprintf(stderr, "Image should be 32 x 32.\n");
-		exit(1);
+	if (bmp.width != 32 || bmp.height != 32)
+	{
+		fprintf(stderr, "Icon image should be 32 x 32.\n");
+		return false;
 	}
 
-	Banner banner;
-	memset(&banner, 0, sizeof(banner));
-	banner.version = 1;
-	if (bannertext[6]) banner.version = 2;
-	if (bannertext[7]) banner.version = 3;
+	if (bmp.frames <= 0 || bmp.frames > 64)
+	{
+		fprintf(stderr, "Icon image should have between 1 and 64 frames.\n");
+		return false;
+	}
 
+	if (!bmp.quantize_rgb15())
+	{
+		return false;
+	}
+
+	if (!bmp.convert_palette())
+	{
+		return false;
+	}
+
+	// if (force_zero_transparent)
+	//
+	// TODO: The old .BMP format force-set color 0 to transparent.
+	// We could keep compatibility here, but that would require
+	// parsing the original .BMP file's palette order.
+	(void) force_zero_transparent;
+
+	if (!bmp.make_zero_transparent())
+	{
+		return false;
+	}
+
+	if (bmp.max_palette_count() > 16)
+	{
+		fprintf(stderr, "Icon image should have at most 16 colors.\n");
+		return false;
+	}
+
+	return true;
+}
+
+static void IconRasterToBanner(const RasterImage &bmp, int frame, unsigned char tile_data[4][4][8][4], unsigned_short palette[16])
+{
 	// tile data (4 bit / tile, 4x4 total tiles)
 	// 32 bytes per tile (in 4 bit mode)
 	for (int row=0; row<4; row++)
@@ -185,18 +199,131 @@ void IconFromBMP()
 			{
 				for (int x=0; x<8; x+=2)
 				{
-					unsigned char b0 = bmp[row*8 + y][col*8 + x + 0];
-					unsigned char b1 = bmp[row*8 + y][col*8 + x + 1];
-					banner.tile_data[row][col][y][x/2] = (b1 << 4) | b0;
+					unsigned int b0 = bmp.get_data(frame, col*8 + x, row*8 + y);
+					unsigned int b1 = bmp.get_data(frame, col*8 + x + 1, row*8 + y);
+					tile_data[row][col][y][x >> 1] = (b1 << 4) | b0;
 				}
 			}
 		}
 	}
 
 	// palette
-	for (int i = 0; i < 16; i++)
+	for (unsigned int i = 0; i < 16; i++)
 	{
-		banner.palette[i] = RGBQuadToRGB16(bmp.palette[i]);
+		if (i < bmp.palette_count[frame])
+		{
+			palette[i] = RasterRgbQuad(bmp.palette[frame][i]).rgb15();
+		}
+		else
+		{
+			palette[i] = 0;
+		}
+	}
+}
+
+static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int delay, bool flip_h, bool flip_v)
+{
+	if (delay < 1)
+	{
+		delay = 1;
+	}
+	else if (delay > 255)
+	{
+		fprintf(stderr, "Warning: Frame %d delay %d too long - shortened to 255.\n", frame, delay);
+		delay = 255;
+	}
+	return delay | (frame_entry << 8) | (frame_entry << 11) | (flip_h ? (1 << 14) : 0) | (flip_v ? (1 << 15) : 0);
+}
+
+/*
+ * IconFromBMP
+ */
+void IconFromBMP()
+{
+	RasterImage bmp, bmp_anim;
+	if (bannerfilename == NULL && banneranimfilename == NULL)
+	{
+		// TODO: default image
+		fprintf(stderr, "No icon image provided.\n");
+		exit(1);
+	}
+
+	if      (bannerfilename == NULL)     bannerfilename = banneranimfilename;
+	else if (banneranimfilename == NULL) banneranimfilename = bannerfilename;
+
+	if (!bmp.load(bannerfilename)) exit(1);
+	if (!IconPrepareValidateBMP(bmp, IsBmpExtensionFilename(bannerfilename))) exit(1);
+
+	if (!bmp_anim.load(banneranimfilename)) exit(1);
+	if (!IconPrepareValidateBMP(bmp_anim, IsBmpExtensionFilename(banneranimfilename))) exit(1);
+
+	Banner banner;
+	memset(&banner, 0, sizeof(banner));
+	banner.version = 0x0001;
+	if (bannertext[6]) banner.version = 0x0002;
+	if (bannertext[7]) banner.version = 0x0003;
+	if (bmp_anim.frames > 1 || bmp != bmp_anim) banner.version = 0x0103;
+
+	IconRasterToBanner(bmp, 0, banner.tile_data, banner.palette);
+
+	if (banner.version >= 0x0103)
+	{
+		// generate animation tiles and sequence
+
+		// TODO: This doesn't support packing tiles which can be expressed as two palettes of the same tile data,
+		// or two tile data instances under the same palette data. It supports up to eight unique frames only.
+
+		if (bmp_anim.frames <= 8)
+		{
+			// fast path
+			for (int i = 0; i < bmp_anim.frames; i++)
+			{
+				IconRasterToBanner(bmp, i, banner.anim_tile_data[i], banner.anim_palette[i]);
+				banner.anim_sequence[i] = IconGetSequenceEntry(i, i, bmp.delays[i], false, false);
+			}
+		}
+		else
+		{
+			// slow path
+			int frame_alloc_idx = 0;
+			RasterImage frame_alloc[8];
+			frame_alloc[frame_alloc_idx++] = bmp_anim.subimage(0);
+			IconRasterToBanner(bmp, 0, banner.anim_tile_data[0], banner.anim_palette[0]);
+			banner.anim_sequence[0] = IconGetSequenceEntry(0, 0, bmp.delays[0], false, false);
+
+			for (int i = 1; i < bmp_anim.frames; i++)
+			{
+				int fa_id = -1;
+				int fa_variant = 0;
+				for (int j = 0; j < frame_alloc_idx; j++)
+				{
+					for (int v = 0; v < 4; v++)
+					{
+						if (frame_alloc[j] == bmp_anim.subimage(i).clone((v & 1) != 0, (v & 2) != 0))
+						{
+							fa_id = j;
+							fa_variant = v;
+							break;
+						}
+					}
+					if (fa_id >= 0) break;
+				}
+				if (fa_id < 0)
+				{
+					if (frame_alloc_idx >= 8)
+					{
+						fprintf(stderr, "Could not convert animated icon - too many unique frames.\n");
+						exit(1);
+					}
+					fa_id = frame_alloc_idx++;
+					fa_variant = 0;
+					frame_alloc[fa_id] = bmp_anim.subimage(i);
+					IconRasterToBanner(bmp, i, banner.anim_tile_data[fa_id], banner.anim_palette[fa_id]);
+				}
+
+				banner.anim_sequence[i] = IconGetSequenceEntry(i, fa_id, bmp.delays[i], (fa_variant & 1) != 0, (fa_variant & 2) != 0);
+			}
+		}
 	}
 
 	BannerPutTitles(banner);
@@ -207,10 +334,12 @@ void IconFromBMP()
 
 /*
  * IconFromGRF
- * 
- * Assumes Input File to be a 32x32 pixel 4bpp tiled image
+ *
+ * Assumes input file to be a 32x32 pixel 4bpp tiled image.
  * grit command line:
  *      grit icon.png -g -gt -gB4 -gT <color> -m! -p -pe 16 -fh! -ftr
+ *
+ * Does not support animated icons.
  */
 
 typedef struct {
@@ -345,7 +474,9 @@ void IconFromGRF() {
 	
 	// Finally build Banner (Same as IconFromBMP)
 	memset(&banner, 0, sizeof(banner));
-	banner.version = 1;
+	banner.version = 0x0001;
+	if (bannertext[6]) banner.version = 0x0002;
+	if (bannertext[7]) banner.version = 0x0003;
 	
 	// put title
 	BannerPutTitles(banner);

@@ -17,7 +17,7 @@ struct Banner
 	unsigned_short title[MAX_BANNER_TITLE_COUNT][BANNER_TITLE_LENGTH];
 
 	unsigned char anim_tile_data[8][4][4][8][4];
-	unsigned char anim_tile_palette[8][16];
+	unsigned_short anim_palette[8][16];
 	unsigned_short anim_sequence[64];
 };
 

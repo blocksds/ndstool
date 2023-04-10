@@ -48,6 +48,7 @@ extern char *overlaydir;
 extern char *arm7ovltablefilename;
 extern char *arm9ovltablefilename;
 extern char *bannerfilename;
+extern char *banneranimfilename;
 extern const char *bannertext[MAX_BANNER_TITLE_COUNT];
 extern int bannertype;
 extern unsigned int bannersize;

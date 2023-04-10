@@ -81,7 +81,7 @@ bool HasElfExtension(char *filename)
 {
 	char *p = strrchr(filename, '.');
 	if (!p) return false;
-	return (strcmp(p, ".elf") == 0);
+	return (strcasecmp(p, ".elf") == 0);
 }
 
 
@@ -364,13 +364,11 @@ void Create()
 	// load a logo
 	if (logofilename)
 	{
-		char *p = strrchr(logofilename, '.');
-		if (!strcmp(p, ".bmp"))
+		if (IsRasterImageExtensionFilename(logofilename))
 		{
-			CRaster raster;
-			if (raster.LoadBMP(logofilename) < 0) exit(1);
-			unsigned char white = (raster.palette[0].rgbGreen >= 128) ? 0 : 1;
-			if (LogoConvert(raster.raster, header.logo, white) < 0) exit(1);
+			RasterImage raster;
+			if (!raster.load(logofilename)) exit(1);
+			if (!LogoConvert(raster, header.logo)) exit(1);
 		}
 		else
 		{
@@ -548,15 +546,18 @@ void Create()
 			fseek(fNDS, header.banner_offset, SEEK_SET);
 			if (bannertype == BANNER_IMAGE)
 			{
-				char * Ext = strrchr(bannerfilename, '.');
-				if (Ext && strcasecmp(Ext, ".bmp") == 0)
-					IconFromBMP();
-				else if (Ext && strcasecmp(Ext, ".grf") == 0)
+				char * Ext = bannerfilename == NULL ? NULL : strrchr(bannerfilename, '.');
+				if (Ext && strcasecmp(Ext, ".grf") == 0)
+				{
 					IconFromGRF();
+				}
+				else if (IsRasterImageExtensionFilename(bannerfilename))
+				{
+					IconFromBMP();
+				}
 				else
 				{
-					fprintf(stderr,
-						"Banner File Error: Unknown extension '%s'!\n", Ext);
+					fprintf(stderr, "Could not convert banner icon: unknown extension '%s'.\n", Ext);
 					exit(1);
 				}
 			}

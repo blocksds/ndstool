@@ -27,6 +27,7 @@ costs per 4 pixels: (# = black)
 */
 
 #include <stdio.h>
+#include "logo.h"
 
 void LogoPackBits(unsigned char *srcp, unsigned char *destp)
 {
@@ -157,4 +158,21 @@ int LogoConvert(unsigned char *srcp, unsigned char *dstp, unsigned char white)
 	}
 	
 	return 0;
+}
+
+bool LogoConvert(RasterImage &img, unsigned char *dstp)
+{
+	unsigned char *data = (unsigned char*) malloc(img.width * img.height * sizeof(unsigned char));
+	if (data == NULL) return false;
+	int i = 0;
+
+	for (int y = 0; y < img.height; y++) {
+		for (int x = 0; x < img.width; x++, i++) {
+			data[i] = img.get_pixel(0, x, y).g < 128 ? 1 : 0;
+		}
+	}
+
+	bool result = LogoConvert(data, dstp, 0) >= 0;
+	free(data);
+	return result;
 }
