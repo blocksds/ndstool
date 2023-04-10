@@ -548,10 +548,10 @@ unsigned int FullyReadHeader(FILE *fNDS, Header &header) {
 }
 
 unsigned int GetBannerSizeFromHeader(Header &header, unsigned short banner_version) {
-	if (header.unitcode & 2) // DSi application
-		return header.banner_size;
-	else
-		return CalcBannerSize(banner_version);
+	unsigned int max_size = CalcBannerSize(banner_version);
+	if ((header.unitcode & 2) && header.banner_size < max_size) // DSi application
+		max_size = header.banner_size;
+	return max_size;
 }
 
 /*
