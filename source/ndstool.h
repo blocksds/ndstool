@@ -1,3 +1,5 @@
+#pragma once
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -6,6 +8,7 @@
 #include <dirent.h>
 #include <fcntl.h>
 #include "little.h"
+#include "banner.h"
 #include "header.h"
 
 #define ROMTYPE_HOMEBREW	0
@@ -45,7 +48,7 @@ extern char *overlaydir;
 extern char *arm7ovltablefilename;
 extern char *arm9ovltablefilename;
 extern char *bannerfilename;
-extern char *bannertext;
+extern const char *bannertext[MAX_BANNER_TITLE_COUNT];
 extern int bannertype;
 extern unsigned int bannersize;
 //extern bool compatibility;

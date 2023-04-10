@@ -95,30 +95,32 @@ unsigned int CalcBannerSize(unsigned short version)
 	}
 };
 
-void BannerPutTitle(const char *text, Banner &banner)
+void BannerPutTitles(Banner &banner)
 {
-	// convert initial title
-	if (!utf16_convert_from_system(text, 0, banner.title[0], BANNER_TITLE_LENGTH * 2))
+	for (int l=0; l<GetBannerLanguageCount(banner.version); l++)
 	{
-		fprintf(stderr, "WARNING: UTF-16 conversion failed, using fallback.\n");
-		for (int i=0; bannertext[i] && (i<BANNER_TITLE_LENGTH); i++)
+		int text_idx = bannertext[l] ? l : 1;
+		// convert initial title
+		if (!utf16_convert_from_system(bannertext[text_idx], 0, banner.title[l], BANNER_TITLE_LENGTH * 2))
 		{
-			banner.title[0][i] = bannertext[i];
+			// avoid repeating error message more than once
+			if (l == text_idx)
+			{
+				fprintf(stderr, "WARNING: UTF-16 conversion failed, using fallback.\n");
+			}
+			for (int i=0; bannertext[text_idx][i] && (i<BANNER_TITLE_LENGTH); i++)
+			{
+				banner.title[l][i] = bannertext[text_idx][i];
+			}
 		}
-	}
-	banner.title[0][BANNER_TITLE_LENGTH-1] = 0;
+		banner.title[l][BANNER_TITLE_LENGTH-1] = 0;
 
-	// convert ; to newline
-	for (int i=0; banner.title[0][i]; i++)
-	{
-		if (banner.title[0][i] == ';')
-			banner.title[0][i] = 0x0A;
-	}
-
-	// copy to other languages
-	for (int l=1; l<GetBannerLanguageCount(banner.version); l++)
-	{
-		memcpy(banner.title[l], banner.title[0], sizeof(banner.title[0]));
+		// convert ; to newline
+		for (int i=0; banner.title[l][i]; i++)
+		{
+			if (banner.title[l][i] == ';')
+				banner.title[l][i] = 0x0A;
+		}
 	}
 }
 
@@ -170,6 +172,8 @@ void IconFromBMP()
 	Banner banner;
 	memset(&banner, 0, sizeof(banner));
 	banner.version = 1;
+	if (bannertext[6]) banner.version = 2;
+	if (bannertext[7]) banner.version = 3;
 
 	// tile data (4 bit / tile, 4x4 total tiles)
 	// 32 bytes per tile (in 4 bit mode)
@@ -195,7 +199,7 @@ void IconFromBMP()
 		banner.palette[i] = RGBQuadToRGB16(bmp.palette[i]);
 	}
 
-	BannerPutTitle(bannertext, banner);
+	BannerPutTitles(banner);
 	InsertBannerCRC(banner, CalcBannerSize(banner.version));
 
 	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
@@ -344,7 +348,7 @@ void IconFromGRF() {
 	banner.version = 1;
 	
 	// put title
-	BannerPutTitle(bannertext, banner);
+	BannerPutTitles(banner);
 	
 	// put Gfx Data
 	memcpy(banner.tile_data, &GfxData[1], 32*16);

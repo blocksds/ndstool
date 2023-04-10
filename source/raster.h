@@ -1,3 +1,5 @@
+#pragma once
+
 #pragma pack(2)
 
 typedef struct tagRGBQUAD

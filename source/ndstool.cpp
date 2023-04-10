@@ -32,7 +32,7 @@ char *overlaydir = 0;
 char *arm7ovltablefilename = 0;
 char *arm9ovltablefilename = 0;
 char *bannerfilename = 0;
-char *bannertext = 0;
+const char *bannertext[MAX_BANNER_TITLE_COUNT] = {0};
 unsigned int bannersize = 0x840;
 //bool compatibility = false;
 char *headerfilename_or_size = 0;
@@ -116,6 +116,8 @@ HelpLine helplines[] =
 	{"F",	"  FAT image\n-F image.bin"},
 	{"y",	"  Overlay files\n-y directory"},
 	{"b",	"  Banner bitmap/text\n-b file.bmp \"text;text;text\"\nThe three lines are shown at different sizes."},
+	{"b",	"  Banner bitmap\n-bi file.bmp"},
+	{"b",	"  Banner text\n-bt0 \"region;specific;text\""},
 	{"t",	"  Banner binary\n-t file.bin"},
 	{"h",	"  Header template\n-h file.bin\nUse the header from another ROM as a template."},
 	{"h",	"  Header size\n-h size\nA header size of 0x4000 is default for real cards and newer homebrew, 0x200 for older homebrew."},
@@ -308,10 +310,27 @@ int main(int argc, char *argv[])
 					break;
 
 				case 'b':
+				{
 					bannertype = BANNER_IMAGE;
-					REQUIRED(bannerfilename);
-					REQUIRED(bannertext);
-					break;
+					if (argv[a][2] == 't') {
+						int text_idx = 1;
+						if (argv[a][3] >= '0' && argv[a][3] <= '9') {
+							text_idx = atoi(argv[a] + 3);
+						}
+						if (text_idx <= MAX_BANNER_TITLE_COUNT) {
+							REQUIRED(bannertext[text_idx]);
+						} else {
+							char* skip;
+							REQUIRED(skip);
+							(void) skip;
+						}
+					} else if (argv[a][2] == 'i') {
+						REQUIRED(bannerfilename);
+					} else {
+						REQUIRED(bannerfilename);
+						OPTIONAL(bannertext[1]);
+					}
+				} break;
 
 				case 'o':
 					REQUIRED(logofilename);
@@ -462,6 +481,9 @@ int main(int argc, char *argv[])
 	if (romversion > 255) {
 		fprintf(stderr, "romversion can only be 0 - 255!\n");
 		return 1;
+	}
+	if (!bannertext[1]) {
+		bannertext[1] = "";
 	}
 
 	/*
