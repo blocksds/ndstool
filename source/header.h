@@ -153,6 +153,8 @@ extern int NumCountries;
 extern Maker makers[];
 extern int NumMakers;
 
+unsigned int FullyReadHeader(FILE *fNDS, Header &header);
+unsigned int GetBannerSizeFromHeader(Header &header, unsigned short banner_version);
 unsigned short CalcHeaderCRC(Header &header);
 unsigned short CalcLogoCRC(Header &header);
 void FixHeaderCRC(char *ndsfilename);

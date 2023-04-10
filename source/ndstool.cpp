@@ -100,7 +100,8 @@ HelpLine helplines[] =
 	{"i",	"Show information:\n-i [file.nds]\nHeader information."},
 	{"v",	"  Show more info\n-v [roms_rc.dat]\nChecksums, warnings, release info"},
 	{"k",	"Hook ARM7 executable\n-k [file.nds]\nCurrently not tested."},
-	{"f",	"Fix header CRC\n-f [file.nds]\nYou only need this after manual editing."},
+	{"f",	"Fix header CRC\n-fh [file.nds]\nYou only need this after manual editing."},
+	{"f",	"Fix banner CRC\n-fb [file.nds]\nYou only need this after manual editing."},
 	{"s",	"En/decrypt secure area\n-s[e|E|d] [file.nds]\nEn/decrypt the secure area and\nput/remove card encryption tables and test patterns.\nOptionally add: d for decryption, e/E for encryption.\n(e: Nintendo offsets, E: others)"},
 	{"l",	"List files:\n-l [file.nds]\nGive a list of contained files."},
 	{"v",	"  Show offsets/sizes\n-v"},
@@ -179,6 +180,7 @@ void Help(char *specificoption = 0)
 enum {
 	ACTION_SHOWINFO,
 	ACTION_FIXHEADERCRC,
+	ACTION_FIXBANNERCRC,
 	ACTION_ENCRYPTSECUREAREA,
 	ACTION_LISTFILES,
 	ACTION_EXTRACT,
@@ -217,10 +219,14 @@ int main(int argc, char *argv[])
 					break;
 				}
 
-				case 'f':	// fix header CRC
+				case 'f':	// fix header/banner CRC
 				{
-					ADDACTION(ACTION_FIXHEADERCRC);
-					OPTIONAL(ndsfilename);
+					switch (argv[a][2])
+					{
+						case 'h': ADDACTION(ACTION_FIXHEADERCRC); OPTIONAL(ndsfilename); break;
+						case 'b': ADDACTION(ACTION_FIXBANNERCRC); OPTIONAL(ndsfilename); break;
+						default: Help(argv[a]); return 1;
+					}
 					break;
 				}
 
@@ -476,21 +482,20 @@ int main(int argc, char *argv[])
 				FixHeaderCRC(ndsfilename);
 				break;
 
-			case ACTION_EXTRACT: {
-				unsigned int headersize = 0x200;
+			case ACTION_FIXBANNERCRC:
 				fNDS = fopen(ndsfilename, "rb");
 				if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
-				fread(&header, 1, headersize, fNDS);
-				if (header.unitcode & 2) { // DSi application
-					fread((char*)&header + headersize, 1, sizeof(Header) - headersize, fNDS);
-					headersize = sizeof(Header);
-					bannersize = header.banner_size;
-				} else {
-					fseek(fNDS, header.banner_offset, SEEK_SET);
-					unsigned_short version;
-					fread(&version, sizeof(version), 1, fNDS);
-					bannersize = CalcBannerSize(version);
-				}
+				FullyReadHeader(fNDS, header);
+				bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
+				fclose(fNDS);
+				FixBannerCRC(ndsfilename, header.banner_offset, bannersize);
+				break;
+
+			case ACTION_EXTRACT: {
+				fNDS = fopen(ndsfilename, "rb");
+				if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+				unsigned int headersize = FullyReadHeader(fNDS, header);
+				bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
 				fclose(fNDS);
 
 				if (arm9filename) Extract(arm9filename, true, 0x20, true, 0x2C, true);

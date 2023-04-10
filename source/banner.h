@@ -1,4 +1,6 @@
 #define BANNER_TITLE_LENGTH 128
+#define NUM_VERSION_CRCS 4
+#define BAD_MIN_VERSION_CRC 0xFFFF
 
 #pragma pack(1)
 
@@ -19,9 +21,11 @@ struct Banner
 
 extern const char *bannerLanguages[];
 
+unsigned short ExtractBannerVersion(FILE *fNDS, unsigned int banner_offset);
+void FixBannerCRC(char *ndsfilename, unsigned int banner_offset, unsigned int bannersize);
 int GetBannerLanguageCount(unsigned short version);
 unsigned int CalcBannerSize(unsigned short version);
 unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot);
-unsigned short CalcBannerCRC(Banner &banner, unsigned short slot);
+unsigned short CalcBannerCRC(Banner &banner, unsigned short slot, unsigned int bannersize);
 void IconFromBMP();
 void IconFromGRF();
