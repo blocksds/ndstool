@@ -263,6 +263,7 @@ void IconFromBMP()
 	if (bannertext[6]) banner.version = 0x0002;
 	if (bannertext[7]) banner.version = 0x0003;
 	if (bmp_anim.frames > 1 || bmp != bmp_anim) banner.version = 0x0103;
+	bannersize = CalcBannerSize(banner.version);
 
 	IconRasterToBanner(bmp, 0, banner.tile_data, banner.palette);
 
@@ -327,9 +328,9 @@ void IconFromBMP()
 	}
 
 	BannerPutTitles(banner);
-	InsertBannerCRC(banner, CalcBannerSize(banner.version));
+	InsertBannerCRC(banner, bannersize);
 
-	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
+	fwrite(&banner, 1, bannersize, fNDS);
 }
 
 /*
@@ -477,6 +478,7 @@ void IconFromGRF() {
 	banner.version = 0x0001;
 	if (bannertext[6]) banner.version = 0x0002;
 	if (bannertext[7]) banner.version = 0x0003;
+	bannersize = CalcBannerSize(banner.version);
 	
 	// put title
 	BannerPutTitles(banner);
@@ -488,10 +490,10 @@ void IconFromGRF() {
 	memcpy(banner.palette, &PalData[1], 16*2);
 	
 	// calculate CRC
-	InsertBannerCRC(banner, CalcBannerSize(banner.version));
+	InsertBannerCRC(banner, bannersize);
 	
 	// write to file
-	fwrite(&banner, 1, CalcBannerSize(banner.version), fNDS);
+	fwrite(&banner, 1, bannersize, fNDS);
 	
 	// free Memory
 	free(GrfData);
