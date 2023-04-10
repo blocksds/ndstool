@@ -1,3 +1,5 @@
+#pragma once
+
 inline int cmp(char *a, bool a_isdir, char *b, bool b_isdir)
 {
 	(void)a_isdir;

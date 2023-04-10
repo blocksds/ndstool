@@ -1,3 +1,5 @@
+#pragma once
+
 struct BigInt
 {
 	unsigned char data[129*2];	// 128*2 doesn't seem to be enough for 1024 bit keys

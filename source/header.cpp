@@ -9,6 +9,26 @@
 /*
  * Data
  */
+const char *ageRatingNames[] =
+{
+	"Rating (Japan/CERO)",
+	"Rating (USA/ESRB)",
+	"Rating ?",
+	"Rating (Germany/USK)",
+	"Rating (Europe/PEGI)",
+	"Rating ?",
+	"Rating (Portugal/PEGI)",
+	"Rating (UK/PEGI/BBFC)",
+	"Rating (Australia/AGCB)",
+	"Rating (South Korea/GRB)",
+	"Rating ?",
+	"Rating ?",
+	"Rating ?",
+	"Rating ?",
+	"Rating ?",
+	"Rating ?"
+};
+
 unsigned char publicKeyNintendo[] =
 {
 	0x9E, 0xC1, 0xCC, 0xC0, 0x4A, 0x6B, 0xD0, 0xA0, 0x6D, 0x62, 0xED, 0x5F, 0x15, 0x67, 0x87, 0x12,
@@ -228,19 +248,43 @@ void ShowHeaderInfo(Header &header, int romType, unsigned int length = 0x200)
 
 	int	offset=0x1c0;
 	
-	if (header.unitcode & 2) {
+	if (isTwl) {
 		printf("0x1C0\t%-25s\t0x%X\n", "DSi9 ROM offset", (int)header.dsi9_rom_offset);
 		printf("0x1C8\t%-25s\t0x%X\n", "DSi9 RAM address", (int)header.dsi9_ram_address);
 		printf("0x1CC\t%-25s\t0x%X\n", "DSi9 code size", (int)header.dsi9_size);
 		printf("0x1D0\t%-25s\t0x%X\n", "DSi7 ROM offset", (int)header.dsi7_rom_offset);
 		printf("0x1D8\t%-25s\t0x%X\n", "DSi7 RAM address", (int)header.dsi7_ram_address);
-		printf("0x1DC\t%-25s\t0x%X\n", "DSi7 code size", (int)header.dsi7_size);	
-		offset=0x1E0;
+		printf("0x1DC\t%-25s\t0x%X\n", "DSi7 code size", (int)header.dsi7_size);
+		for (unsigned int i=0x1e0; i<0x208; i+=4)
+		{
+			unsigned_int &x = ((unsigned_int *)&header)[i/4];
+			if (x != 0) printf("0x%02X\t%-25s\t0x%08X\n", i, "?", (int)x);
+		}
+		printf("0x208\t%-25s\t0x%X\n", "Banner size", (int)header.banner_size);
+		if (header.offset_0x20C != 0) printf("0x20C\t%-25s\t0x%X\n", "?", (int)header.offset_0x20C);
+		printf("0x210\t%-25s\t0x%X\n", "ROM size", (int)header.total_rom_size);
+		for (unsigned int i=0x214; i<0x230; i+=4)
+		{
+			unsigned_int &x = ((unsigned_int *)&header)[i/4];
+			if (x != 0) printf("0x%02X\t%-25s\t0x%08X\n", i, "?", (int)x);
+		}
+		printf("0x230\t%-25s\t0x%08X%08X\n", "DSi title ID", (int)header.tid_high, (int)header.tid_low);
+		offset=0x238;
+		length=0x2f0;
 	}
 	for (unsigned int i=offset; i<length; i+=4)
 	{
 		unsigned_int &x = ((unsigned_int *)&header)[i/4];
 		if (x != 0) printf("0x%02X\t%-25s\t0x%08X\n", i, "?", (int)x);
+	}
+	if (isTwl) {
+		for (unsigned int i=0; i<16; i++)
+		{
+			if (header.age_ratings[i] & 0x80)
+			{
+				printf("0x%X\t%-25s\t0x%2X\n", 0x2f0+i, ageRatingNames[i], header.age_ratings[i]);
+			}
+		}
 	}
 
 }

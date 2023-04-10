@@ -1,3 +1,9 @@
+// SPDX-License-Identifier: Zlib OR GPL-3.0-or-later
+//
+// Copyright (c) 2023 Adrian "asie" Siekierka
+
+#pragma once
+
 #include "little.h"
 
 /**

@@ -81,7 +81,7 @@ bool HasElfExtension(char *filename)
 {
 	char *p = strrchr(filename, '.');
 	if (!p) return false;
-	return (strcmp(p, ".elf") == 0);
+	return (strcasecmp(p, ".elf") == 0);
 }
 
 
@@ -364,13 +364,11 @@ void Create()
 	// load a logo
 	if (logofilename)
 	{
-		char *p = strrchr(logofilename, '.');
-		if (!strcmp(p, ".bmp"))
+		if (IsRasterImageExtensionFilename(logofilename))
 		{
-			CRaster raster;
-			if (raster.LoadBMP(logofilename) < 0) exit(1);
-			unsigned char white = (raster.palette[0].rgbGreen >= 128) ? 0 : 1;
-			if (LogoConvert(raster.raster, header.logo, white) < 0) exit(1);
+			RasterImage raster;
+			if (!raster.load(logofilename)) exit(1);
+			if (!LogoConvert(raster, header.logo)) exit(1);
 		}
 		else
 		{
@@ -542,37 +540,50 @@ void Create()
 		header.fat_size = file_count * 8;		// each entry contains top & bottom offset
 
 		// banner after FNT/FAT
-		if (bannerfilename)
 		{
 			header.banner_offset = (header.fat_offset + header.fat_size + banner_align) &~ banner_align;
 			fseek(fNDS, header.banner_offset, SEEK_SET);
 			if (bannertype == BANNER_IMAGE)
 			{
-				char * Ext = strrchr(bannerfilename, '.');
-				if (Ext && strcasecmp(Ext, ".bmp") == 0)
-					IconFromBMP();
-				else if (Ext && strcasecmp(Ext, ".grf") == 0)
+				char * Ext = bannerfilename == NULL ? NULL : strrchr(bannerfilename, '.');
+				if (Ext && strcasecmp(Ext, ".grf") == 0)
+				{
 					IconFromGRF();
+				}
 				else
 				{
-					fprintf(stderr,
-						"Banner File Error: Unknown extension '%s'!\n", Ext);
-					exit(1);
+					if (!IsRasterImageExtensionFilename(bannerfilename))
+					{
+						if (bannerfilename != NULL)
+						{
+							fprintf(stderr, "Warning: Unrecognized banner icon image extension: \"%s\"\n", bannerfilename);
+							bannerfilename = NULL;
+						}
+					}
+					if (!IsRasterImageExtensionFilename(banneranimfilename))
+					{
+						if (banneranimfilename != NULL)
+						{
+							fprintf(stderr, "Warning: Unrecognized banner animated icon image extension: \"%s\"\n", banneranimfilename);
+							banneranimfilename = NULL;
+						}
+					}
+					IconFromBMP();
 				}
+			}
+			else if (bannertype == BANNER_BINARY && bannerfilename)
+			{
+				CopyFromBin(bannerfilename, &bannersize);
 			}
 			else
 			{
-				CopyFromBin(bannerfilename, &bannersize);
+				file_top = header.fat_offset + header.fat_size;
+				header.banner_offset = 0;
+				header.banner_size = 0;
 			}
 
 			file_top = header.banner_offset + bannersize;
 			header.banner_size = bannersize;
-		}
-		else
-		{
-			file_top = header.fat_offset + header.fat_size;
-			header.banner_offset = 0;
-			header.banner_size = 0;
 		}
 
 		file_end = file_top;	// no file data as yet

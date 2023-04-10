@@ -32,7 +32,8 @@ char *overlaydir = 0;
 char *arm7ovltablefilename = 0;
 char *arm9ovltablefilename = 0;
 char *bannerfilename = 0;
-char *bannertext = 0;
+char *banneranimfilename = 0;
+const char *bannertext[MAX_BANNER_TITLE_COUNT] = {0};
 unsigned int bannersize = 0x840;
 //bool compatibility = false;
 char *headerfilename_or_size = 0;
@@ -48,7 +49,7 @@ int latency2 = 0x3F;	//0x18;
 unsigned int romversion = 0;
 char endecrypt_option = 0;
 
-int bannertype;
+int bannertype = 0;
 unsigned int arm9RamAddress = 0;
 unsigned int arm7RamAddress = 0;
 unsigned int arm9Entry = 0;
@@ -115,12 +116,15 @@ HelpLine helplines[] =
 	{"d",	"  Data files\n-d directory"},
 	{"F",	"  FAT image\n-F image.bin"},
 	{"y",	"  Overlay files\n-y directory"},
-	{"b",	"  Banner bitmap/text\n-b file.bmp \"text;text;text\"\nThe three lines are shown at different sizes."},
+	{"b",	"  Banner icon/text\n-b file.[bmp|gif|png] \"text;text;text\"\nThe three lines are shown at different sizes."},
+	{"b",	"  Banner animated icon\n-ba file.[bmp|gif|png]"},
+	{"b",	"  Banner static icon\n-bi file.[bmp|gif|png]"},
+	{"b",	"  Banner text\n-bt0 \"region;specific;text\""},
 	{"t",	"  Banner binary\n-t file.bin"},
 	{"h",	"  Header template\n-h file.bin\nUse the header from another ROM as a template."},
 	{"h",	"  Header size\n-h size\nA header size of 0x4000 is default for real cards and newer homebrew, 0x200 for older homebrew."},
 	{"n",	"  Latency\n-n [L1] [L2]\ndefault=maximum"},
-	{"o",	"  Logo bitmap/binary\n-o file.bmp/file.bin"},
+	{"o",	"  Logo image/binary\n-o file.[bmp|gif|png]/file.bin"},
 	{"g",	"  Game info\n-g gamecode [makercode] [title] [rom ver]\nSets game-specific information.\nGame code is 4 characters. Maker code is 2 characters.\nTitle can be up to 12 characters."},
 	{"r",	"  ARM9 RAM address\n-r9 address"},
 	{"r",	"  ARM7 RAM address\n-r7 address"},
@@ -308,10 +312,30 @@ int main(int argc, char *argv[])
 					break;
 
 				case 'b':
+				{
 					bannertype = BANNER_IMAGE;
-					REQUIRED(bannerfilename);
-					REQUIRED(bannertext);
-					break;
+					if (argv[a][2] == 't') {
+						int text_idx = 1;
+						if (argv[a][3] >= '0' && argv[a][3] <= '9') {
+							text_idx = atoi(argv[a] + 3);
+						}
+						if (text_idx <= MAX_BANNER_TITLE_COUNT) {
+							REQUIRED(bannertext[text_idx]);
+						} else {
+							char* skip;
+							REQUIRED(skip);
+							(void) skip;
+						}
+					} else if (argv[a][2] == 'i') {
+						REQUIRED(bannerfilename);
+					} else if (argv[a][2] == 'a') {
+						REQUIRED(banneranimfilename);
+					} else {
+						REQUIRED(bannerfilename);
+						banneranimfilename = bannerfilename;
+						OPTIONAL(bannertext[1]);
+					}
+				} break;
 
 				case 'o':
 					REQUIRED(logofilename);
@@ -462,6 +486,9 @@ int main(int argc, char *argv[])
 	if (romversion > 255) {
 		fprintf(stderr, "romversion can only be 0 - 255!\n");
 		return 1;
+	}
+	if (!bannertext[1]) {
+		bannertext[1] = "";
 	}
 
 	/*
