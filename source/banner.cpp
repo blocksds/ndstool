@@ -244,7 +244,7 @@ void IconFromBMP()
 	if (bannerfilename == NULL && banneranimfilename == NULL)
 	{
 		// TODO: default image
-		fprintf(stderr, "No icon image provided.\n");
+		fprintf(stderr, "Error: No banner icon image provided!\n");
 		exit(1);
 	}
 

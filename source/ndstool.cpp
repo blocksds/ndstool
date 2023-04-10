@@ -49,7 +49,7 @@ int latency2 = 0x3F;	//0x18;
 unsigned int romversion = 0;
 char endecrypt_option = 0;
 
-int bannertype;
+int bannertype = 0;
 unsigned int arm9RamAddress = 0;
 unsigned int arm7RamAddress = 0;
 unsigned int arm9Entry = 0;

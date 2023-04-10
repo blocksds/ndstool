@@ -19,7 +19,7 @@
 
 #define MAX_FILEMASKS		16
 
-enum { BANNER_BINARY, BANNER_IMAGE };
+enum { BANNER_NONE, BANNER_BINARY, BANNER_IMAGE };
 
 extern unsigned int free_file_id;
 extern unsigned int file_end;

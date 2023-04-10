@@ -540,7 +540,6 @@ void Create()
 		header.fat_size = file_count * 8;		// each entry contains top & bottom offset
 
 		// banner after FNT/FAT
-		if (bannerfilename)
 		{
 			header.banner_offset = (header.fat_offset + header.fat_size + banner_align) &~ banner_align;
 			fseek(fNDS, header.banner_offset, SEEK_SET);
@@ -551,29 +550,40 @@ void Create()
 				{
 					IconFromGRF();
 				}
-				else if (IsRasterImageExtensionFilename(bannerfilename))
-				{
-					IconFromBMP();
-				}
 				else
 				{
-					fprintf(stderr, "Could not convert banner icon: unknown extension '%s'.\n", Ext);
-					exit(1);
+					if (!IsRasterImageExtensionFilename(bannerfilename))
+					{
+						if (bannerfilename != NULL)
+						{
+							fprintf(stderr, "Warning: Unrecognized banner icon image extension: \"%s\"\n", bannerfilename);
+							bannerfilename = NULL;
+						}
+					}
+					if (!IsRasterImageExtensionFilename(banneranimfilename))
+					{
+						if (banneranimfilename != NULL)
+						{
+							fprintf(stderr, "Warning: Unrecognized banner animated icon image extension: \"%s\"\n", banneranimfilename);
+							banneranimfilename = NULL;
+						}
+					}
+					IconFromBMP();
 				}
+			}
+			else if (bannertype == BANNER_BINARY && bannerfilename)
+			{
+				CopyFromBin(bannerfilename, &bannersize);
 			}
 			else
 			{
-				CopyFromBin(bannerfilename, &bannersize);
+				file_top = header.fat_offset + header.fat_size;
+				header.banner_offset = 0;
+				header.banner_size = 0;
 			}
 
 			file_top = header.banner_offset + bannersize;
 			header.banner_size = bannersize;
-		}
-		else
-		{
-			file_top = header.fat_offset + header.fat_size;
-			header.banner_offset = 0;
-			header.banner_size = 0;
 		}
 
 		file_end = file_top;	// no file data as yet

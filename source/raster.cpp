@@ -3,7 +3,6 @@
 // Copyright (c) 2023 Adrian "asie" Siekierka
 
 #include <map>
-#include "ndstool.h"
 #include "raster.h"
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -13,11 +12,13 @@
 #include "stb_image.h"
 
 bool IsRasterImageExtensionFilename(const char *filename) {
+	if (filename == NULL) return false;
 	const char *p = strrchr(filename, '.');
 	return p != NULL && (!strcasecmp(p, ".bmp") || !strcasecmp(p, ".gif") || !strcasecmp(p, ".png"));
 }
 
 bool IsBmpExtensionFilename(const char *filename) {
+	if (filename == NULL) return false;
 	const char *p = strrchr(filename, '.');
 	return p != NULL && !strcasecmp(p, ".bmp");
 }
