@@ -16,7 +16,13 @@ DEFINES		:= -DPACKAGE_VERSION=\"2.2.1\"
 # Libraries
 # ---------
 
+# Some hack to compile on macOS, which needs libiconv explicitly defined
+UNAME		:= $(shell uname -s)
+ifeq ($(UNAME),Darwin)
+LIBS		:= -liconv
+else
 LIBS		:=
+endif
 LIBDIRS		:=
 
 # Build artifacts
