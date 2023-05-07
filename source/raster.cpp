@@ -9,7 +9,11 @@
 #define STBI_ONLY_PNG
 #define STBI_ONLY_BMP
 #define STBI_ONLY_GIF
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#pragma GCC diagnostic ignored "-Wtype-limits"
 #include "stb_image.h"
+#pragma GCC diagnostic pop
 
 bool IsRasterImageExtensionFilename(const char *filename) {
 	if (filename == NULL) return false;
