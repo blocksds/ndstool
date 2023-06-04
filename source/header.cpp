@@ -3,7 +3,6 @@
 #include "sha1.h"
 #include "crc.h"
 #include "bigint.h"
-#include "encryption.h"
 #include "utf16.h"
 
 /*
@@ -77,12 +76,11 @@ int DetectRomType()
 /*
  * CalcSecureAreaCRC
  */
-unsigned short CalcSecureAreaCRC(bool encrypt)
+unsigned short CalcSecureAreaCRC()
 {
 	fseek(fNDS, 0x4000, SEEK_SET);
 	unsigned char data[0x4000];
 	fread(data, 1, 0x4000, fNDS);
-	if (encrypt) encrypt_arm9(*(u32 *)header.gamecode, data);
 	return CalcCrc16(data, 0x4000);
 }
 
@@ -204,9 +202,9 @@ void ShowHeaderInfo(Header &header, int romType, unsigned int length = 0x200)
 	printf("0x60\t%-25s\t0x%08X\n", "ROM control info 1", (int)header.rom_control_info1);
 	printf("0x64\t%-25s\t0x%08X\n", "ROM control info 2", (int)header.rom_control_info2);
 	printf("0x68\t%-25s\t0x%X\n", "Icon/title offset", (int)header.banner_offset);
-	unsigned short secure_area_crc = CalcSecureAreaCRC((romType == ROMTYPE_NDSDUMPED));
+	unsigned short secure_area_crc = CalcSecureAreaCRC();
 	const char *s1, *s2 = "";
-	if (romType == ROMTYPE_HOMEBREW) s1 = "-";
+	if (romType == ROMTYPE_HOMEBREW || romType == ROMTYPE_NDSDUMPED) s1 = "-";
 	else if (secure_area_crc == header.secure_area_crc) s1 = "OK";
 	else
 	{
@@ -421,43 +419,6 @@ char *strsepc(char **s, char d)
 }
 
 /*
- * RomListInfo
- */
-void RomListInfo(unsigned int crc32_match)
-{
-	if (!romlistfilename) return;
-	FILE *fRomList = fopen(romlistfilename, "rt");
-	if (!fRomList) { fprintf(stderr, "Cannot open file '%s'.\n", romlistfilename); exit(1); }
-	char s[1024];
-	while (fgets(s, 1024, fRomList))	// empty, title, title, title, title, filename, CRC32
-	{
-		char *p = s;
-		if (strlen(strsepc(&p, '\xAC')) == 0)
-		{
-			char *title = strsepc(&p, '\xAC');
-			unsigned int index = strtoul(title, 0, 10);
-			title += 7;
-			char *b1 = strchr(title, '(');
-			char *b2 = b1 ? strchr(b1+1, ')') : 0;
-			char *b3 = b2 ? strchr(b2+1, '(') : 0;
-			char *b4 = b3 ? strchr(b3+1, ')') : 0;
-			char *group = 0;
-			if (b1 + 2 == b2) if (b3 && b4) { *b3 = 0; *b4 = 0; group = b3+1; }		// remove release group name
-			strsepc(&p, '\xAC'); strsepc(&p, '\xAC');
-			strsepc(&p, '\xAC'); strsepc(&p, '\xAC');
-			unsigned long crc32 = strtoul(strsepc(&p, '\xAC'), 0, 16);
-			if (crc32 == crc32_match)
-			{
-				printf("Release index: \t%u\n", index);
-				printf("Release title: \t%s\n", title);
-				printf("Release group: \t%s\n", group ? group : "");
-			}
-			//for (int i=0; i<10; i++) printf("%d %s\n", i, strsepc(&p, '\xAC'));
-		}
-	}
-}
-
-/*
  * ShowVerboseInfo
  */
 void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
@@ -542,7 +503,7 @@ void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
 			printf("signature hash: \t"); for (int i=0; i<SHA1_DIGEST_SIZE; i++) printf("%02X", sha1_from_sig[i]); printf("\n");
 		}
 	}
-	
+
 	// CRC32
 	{
 		unsigned char *buf = new unsigned char [0x10000];
@@ -557,16 +518,6 @@ void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
 		delete [] buf;
 
 		printf("\nFile CRC32:    \t%08X\n", (unsigned int)crc32);
-		RomListInfo(crc32);
-	}
-	
-	// ROM dumper 1.0 bad data
-	{
-		unsigned char buf[0x200];
-		fseek(fNDS, 0x7E00, SEEK_SET);
-		fread(buf, 1, 0x200, fNDS);
-		unsigned long crc32 = ~CalcCrc32(buf, 0x200);
-		printf("\nSMT dumper v1.0 corruption check: \t%s\n", (crc32 == 0x7E8B456F) ? "CORRUPTED" : "OK");
 	}
 
 	// check ARM7 entry address

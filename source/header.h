@@ -163,4 +163,4 @@ void FixHeaderCRC(char *ndsfilename);
 void ShowInfo(char *ndsfilename);
 int HashAndCompareWithList(char *filename, unsigned char sha1[]);
 int DetectRomType();
-unsigned short CalcSecureAreaCRC(bool encrypt);
+unsigned short CalcSecureAreaCRC();

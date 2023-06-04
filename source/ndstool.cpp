@@ -8,8 +8,6 @@
 #include "sha1.h"
 #include "ndscreate.h"
 #include "ndsextract.h"
-#include "hook.h"
-#include "encryption.h"
 #include "banner.h"
 
 /*
@@ -18,7 +16,6 @@
 int verbose = 0;
 Header header;
 FILE *fNDS = 0;
-char *romlistfilename = 0;
 char *filemasks[MAX_FILEMASKS];
 int filemask_num = 0;
 char *ndsfilename = 0;
@@ -47,7 +44,6 @@ char *sramfilename = 0;
 int latency1 = 0x1FFF;	//0x8F8;
 int latency2 = 0x3F;	//0x18;
 unsigned int romversion = 0;
-char endecrypt_option = 0;
 
 int bannertype = 0;
 unsigned int arm9RamAddress = 0;
@@ -99,11 +95,8 @@ HelpLine helplines[] =
 	{"",	"---------\n------\n--------"},
 	{"?",	"Show this help:\n-?[option]\nAll or single help for an option."},
 	{"i",	"Show information:\n-i [file.nds]\nHeader information."},
-	{"v",	"  Show more info\n-v [roms_rc.dat]\nChecksums, warnings, release info"},
-	{"k",	"Hook ARM7 executable\n-k [file.nds]\nCurrently not tested."},
 	{"f",	"Fix header CRC\n-fh [file.nds]\nYou only need this after manual editing."},
 	{"f",	"Fix banner CRC\n-fb [file.nds]\nYou only need this after manual editing."},
-	{"s",	"En/decrypt secure area\n-s[e|E|d] [file.nds]\nEn/decrypt the secure area and\nput/remove card encryption tables and test patterns.\nOptionally add: d for decryption, e/E for encryption.\n(e: Nintendo offsets, E: others)"},
 	{"l",	"List files:\n-l [file.nds]\nGive a list of contained files."},
 	{"v",	"  Show offsets/sizes\n-v"},
 	{"c",	"Create\n-c [file.nds]"},
@@ -185,11 +178,9 @@ enum {
 	ACTION_SHOWINFO,
 	ACTION_FIXHEADERCRC,
 	ACTION_FIXBANNERCRC,
-	ACTION_ENCRYPTSECUREAREA,
 	ACTION_LISTFILES,
 	ACTION_EXTRACT,
 	ACTION_CREATE,
-	ACTION_HOOK,
 };
 
 /*
@@ -234,14 +225,6 @@ int main(int argc, char *argv[])
 					break;
 				}
 
-				case 's':	// en-/decrypt secure area
-				{
-					ADDACTION(ACTION_ENCRYPTSECUREAREA);
-					endecrypt_option = argv[a][2];
-					OPTIONAL(ndsfilename);
-					break;
-				}
-
 				case 'l':	// list files
 				{
 					ADDACTION(ACTION_LISTFILES);
@@ -255,7 +238,7 @@ int main(int argc, char *argv[])
 					OPTIONAL(ndsfilename);
 					break;
 				}
-				
+
 				case 'w':	// wildcard filemasks
 				{
 					while (1)
@@ -282,7 +265,7 @@ int main(int argc, char *argv[])
 				case 'F': REQUIRED(fatimagepath); break;
 
 				// ARM7 filename
-				case '7': 
+				case '7':
 					if (argv[a][2] == 'i') {
 						REQUIRED(arm7ifilename);
 					} else {
@@ -297,14 +280,6 @@ int main(int argc, char *argv[])
 						REQUIRED(arm9filename);
 					}
 					break;
-
-				// hook ARM7 executable
-				case 'k':
-				{
-					ADDACTION(ACTION_HOOK);
-					OPTIONAL(ndsfilename);
-					break;
-				}
 
 				case 't':
 					REQUIRED(bannerfilename);
@@ -376,7 +351,6 @@ int main(int argc, char *argv[])
 
 				case 'v':	// verbose
 					for (char *p=argv[a]; *p; p++) if (*p == 'v') verbose++;
-					OPTIONAL(romlistfilename);
 					break;
 
 				case 'n':	// latency
@@ -549,18 +523,6 @@ int main(int argc, char *argv[])
 				filerootdir = 0;
 				/*status =*/ ExtractFiles(ndsfilename);
 				break;
-			
-			case ACTION_HOOK:
-			{
-				Hook(ndsfilename, arm7filename);
-				break;
-			}
-
-			case ACTION_ENCRYPTSECUREAREA:
-			{
-				/*status =*/ EnDecryptSecureArea(ndsfilename, endecrypt_option);
-				break;
-			}
 		}
 	}
 

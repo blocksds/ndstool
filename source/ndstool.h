@@ -36,7 +36,6 @@ extern unsigned int file_top;
 extern int verbose;
 extern Header header;
 extern FILE *fNDS;
-extern char *romlistfilename;
 extern char *filemasks[MAX_FILEMASKS];
 extern int filemask_num;
 extern char *ndsfilename;
