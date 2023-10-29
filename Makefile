@@ -118,7 +118,7 @@ install: all
 	$(V)$(RM) $(INSTALLDIR_ABS)
 	$(V)$(INSTALL) -d $(INSTALLDIR_ABS)
 	$(V)$(INSTALL) $(STRIP) -m $(BINMODE) $(NAME) $(INSTALLDIR_ABS)
-	$(V)$(CP) COPYING $(INSTALLDIR_ABS)
+	$(V)$(CP) ./COPYING* $(INSTALLDIR_ABS)
 
 # Rules
 # -----
