@@ -608,17 +608,6 @@ void Create()
 		}
 	}
 
-	if (fatimagepath) {
-		// Align to a FAT block size so that all reads are always aligned.
-		uint32_t block_align = 512 - 1;
-		header.fat_offset = (ftell(fNDS) + block_align) &~ block_align;
-
-		fseek(fNDS, header.fat_offset, SEEK_SET);
-		unsigned int fatimagesize;
-		CopyFromBin(fatimagepath, &fatimagesize);
-		header.fat_size = fatimagesize;
-	}
-
 	// --------------------------
 
 	// align file size
