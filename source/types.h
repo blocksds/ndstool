@@ -1,3 +1,5 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
+
 #ifndef __TYPES_H
 #define __TYPES_H
 

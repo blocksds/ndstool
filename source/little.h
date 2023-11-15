@@ -1,3 +1,5 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
+
 #ifndef _LITTLE_H_
 #define _LITTLE_H_
 

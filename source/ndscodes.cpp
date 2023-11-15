@@ -1,3 +1,5 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
+
 #include "ndstool.h"
 
 Country countries[] =

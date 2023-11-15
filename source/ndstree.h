@@ -1,3 +1,5 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
+
 #pragma once
 
 inline int cmp(char *a, bool a_isdir, char *b, bool b_isdir)

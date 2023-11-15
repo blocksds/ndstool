@@ -1,3 +1,4 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 /*
 	big integer class for RSA calculation
 	Numbers stored in big endian order.

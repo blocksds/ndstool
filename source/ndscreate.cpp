@@ -1,3 +1,5 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
+
 #include <time.h>
 #include <unistd.h>
 #include "ndstool.h"

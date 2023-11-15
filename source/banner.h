@@ -1,3 +1,5 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
+
 #pragma once
 
 #define MAX_BANNER_TITLE_COUNT 16

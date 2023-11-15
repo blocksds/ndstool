@@ -1,3 +1,4 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 /*
 	Cyclic Redundancy Code (CRC) functions
 	by Rafael Vuijk (aka DarkFader)

@@ -1,3 +1,4 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 /*
  ---------------------------------------------------------------------------
  Copyright (c) 2002, Dr Brian Gladman <brg@gladman.me.uk>, Worcester, UK.

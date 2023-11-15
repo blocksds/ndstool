@@ -1,3 +1,4 @@
+// SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 /*
 	Nintendo DS rom tool
 	by Rafael Vuijk (aka DarkFader)
