@@ -204,10 +204,6 @@ enum {
  */
 int main(int argc, char *argv[])
 {
-	#ifdef _NDSTOOL_P_H
-		if (sizeof(Header) != 0x200) { fprintf(stderr, "Header size %d != %d\n", sizeof(Header), 0x200); return 1; }
-	#endif
-
 	if (argc < 2)
 	{
 		Help();

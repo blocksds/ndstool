@@ -1,5 +1,7 @@
 // SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 
+#include <assert.h>
+
 #pragma once
 
 #pragma pack(1)
@@ -138,6 +140,9 @@ struct Header
 
 #pragma pack()
 
+#if __STDC_VERSION__ >= 201112L // C11 is required for static_assert
+static_assert(sizeof(Header) == 0x200);
+#endif
 
 struct Country
 {
