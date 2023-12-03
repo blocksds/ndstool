@@ -32,9 +32,7 @@ char *bannerfilename = 0;
 char *banneranimfilename = 0;
 const char *bannertext[MAX_BANNER_TITLE_COUNT] = {0};
 unsigned int bannersize = 0x840;
-//bool compatibility = false;
 char *headerfilename_or_size = 0;
-//char *uniquefilename = 0;
 char *logofilename = 0;
 char *title = 0;
 char *makercode = 0;
@@ -141,11 +139,15 @@ void Help(char *specificoption = 0)
 	if (specificoption)
 	{
 		bool found = false;
-		for (unsigned int i=0; i<(sizeof(helplines) / sizeof(helplines[0])); i++)
+		for (unsigned int i = 0; i < (sizeof(helplines) / sizeof(helplines[0])); i++)
 		{
 			for (const char *o = helplines[i].option_char; *o; o++)
 			{
-				if (*o == *specificoption) { helplines[i].Print(); found = true; }
+				if (strncmp(specificoption, o, strlen(specificoption)) == 0)
+				{
+					helplines[i].Print();
+					found = true;
+				}
 			}
 		}
 		if (!found)
@@ -166,10 +168,25 @@ void Help(char *specificoption = 0)
 	}
 }
 
+// Must precede OPTIONAL
+#define REQUIRED(var)	var = ((argc > a + 1) ? argv[++a] : 0)
 
-#define REQUIRED(var)	var = ((argc > a+1) ? argv[++a] : 0)								// must precede OPTIONAL
-#define OPTIONAL(var)	{ /*fprintf(stderr, "'%s'\n", argv[a]);*/ char *t = ((argc > a+1) && (argv[a+1][0] != '-') ? argv[++a] : 0); if (!var) var = t; else if (t) fprintf(stderr, "%s is already specified!\n", #var); }		// final paramter requirement checks are done when performing actions
-#define OPTIONAL_INT(var)	{ char *t = ((argc > a+1) && (argv[a+1][0] != '-') ? argv[++a] : 0); if (t) var = strtoul(t,0,0); }		// like OPTIONAL, but for (positive) integers
+// Final parameter requirement checks are done when performing actions
+#define OPTIONAL(var)	{ \
+	char *t = ((argc > a + 1) && (argv[a + 1][0] != '-') ? argv[++a] : 0); \
+	if (!var) \
+		var = t; \
+	else if (t) \
+		fprintf(stderr, "%s is already specified!\n", #var); \
+}
+
+// Like OPTIONAL, but for (positive) integers
+#define OPTIONAL_INT(var)	{ \
+	char *t = ((argc > a + 1) && (argv[a + 1][0] != '-') ? argv[++a] : 0); \
+	if (t) \
+		var = strtoul(t, 0, 0); \
+}
+
 #define MAX_ACTIONS		32
 #define ADDACTION(a)	{ if (num_actions < MAX_ACTIONS) actions[num_actions++] = a; }
 
@@ -191,8 +208,12 @@ int main(int argc, char *argv[])
 		if (sizeof(Header) != 0x200) { fprintf(stderr, "Header size %d != %d\n", sizeof(Header), 0x200); return 1; }
 	#endif
 
-	if (argc < 2) { Help(); return 0; }
-	
+	if (argc < 2)
+	{
+		Help();
+		return 0;
+	}
+
 	int num_actions = 0;
 	int actions[MAX_ACTIONS];
 
@@ -200,216 +221,204 @@ int main(int argc, char *argv[])
 	 * parse parameters to actions
 	 */
 
-	for (int a=1; a<argc; a++)
+	for (int a = 1; a < argc; a++)
 	{
-		if (argv[a][0] == '-')
+		if (strcmp(argv[a], "-i") == 0) // Show information
 		{
-			switch (argv[a][1])
+			ADDACTION(ACTION_SHOWINFO);
+			OPTIONAL(ndsfilename);
+		}
+        else if (strcmp(argv[a], "-fh") == 0) // Fix header CRC
+		{
+			ADDACTION(ACTION_FIXHEADERCRC);
+			OPTIONAL(ndsfilename);
+		}
+        else if (strcmp(argv[a], "-fb") == 0) // Fix banner CRC
+		{
+			ADDACTION(ACTION_FIXBANNERCRC);
+			OPTIONAL(ndsfilename);
+		}
+		else if (strcmp(argv[a], "-l") == 0) // List files
+		{
+			ADDACTION(ACTION_LISTFILES);
+			OPTIONAL(ndsfilename);
+		}
+		else if (strcmp(argv[a], "-x") == 0) // Extract
+		{
+			ADDACTION(ACTION_EXTRACT);
+			OPTIONAL(ndsfilename);
+		}
+		else if (strcmp(argv[a], "-w") == 0) // Wildcard filemasks
+		{
+			while (1)
 			{
-				case 'i':	// show information
-				{
-					ADDACTION(ACTION_SHOWINFO);
-					OPTIONAL(ndsfilename);
+				char *filemask = 0;
+				OPTIONAL(filemask);
+				if (!(filemasks[filemask_num] = filemask))
 					break;
-				}
-
-				case 'f':	// fix header/banner CRC
-				{
-					switch (argv[a][2])
-					{
-						case 'h': ADDACTION(ACTION_FIXHEADERCRC); OPTIONAL(ndsfilename); break;
-						case 'b': ADDACTION(ACTION_FIXBANNERCRC); OPTIONAL(ndsfilename); break;
-						default: Help(argv[a]); return 1;
-					}
-					break;
-				}
-
-				case 'l':	// list files
-				{
-					ADDACTION(ACTION_LISTFILES);
-					OPTIONAL(ndsfilename);
-					break;
-				}
-
-				case 'x':	// extract
-				{
-					ADDACTION(ACTION_EXTRACT);
-					OPTIONAL(ndsfilename);
-					break;
-				}
-
-				case 'w':	// wildcard filemasks
-				{
-					while (1)
-					{
-						char *filemask = 0;
-						OPTIONAL(filemask);
-						if (!(filemasks[filemask_num] = filemask)) break;
-						if (++filemask_num >= MAX_FILEMASKS) return 1;
-					}
-					break;
-				}
-
-				case 'c':	// create
-				{
-					ADDACTION(ACTION_CREATE);
-					OPTIONAL(ndsfilename);
-					break;
-				}
-
-				// file root directory
-				case 'd': REQUIRED(filerootdir); break;
-
-				// ARM7 filename
-				case '7':
-					if (argv[a][2] == 'i') {
-						REQUIRED(arm7ifilename);
-					} else {
-						REQUIRED(arm7filename);
-					}
-					break;
-				// ARM9 filename
-				case '9':
-					if (argv[a][2] == 'i') {
-						REQUIRED(arm9ifilename);
-					} else {
-						REQUIRED(arm9filename);
-					}
-					break;
-
-				case 't':
-					REQUIRED(bannerfilename);
-					bannertype = BANNER_BINARY;
-					break;
-
-				case 'b':
-				{
-					bannertype = BANNER_IMAGE;
-					if (argv[a][2] == 't') {
-						int text_idx = 1;
-						if (argv[a][3] >= '0' && argv[a][3] <= '9') {
-							text_idx = atoi(argv[a] + 3);
-						}
-						if (text_idx <= MAX_BANNER_TITLE_COUNT) {
-							REQUIRED(bannertext[text_idx]);
-						} else {
-							char* skip;
-							REQUIRED(skip);
-							(void) skip;
-						}
-					} else if (argv[a][2] == 'i') {
-						REQUIRED(bannerfilename);
-					} else if (argv[a][2] == 'a') {
-						REQUIRED(banneranimfilename);
-					} else {
-						REQUIRED(bannerfilename);
-						banneranimfilename = bannerfilename;
-						OPTIONAL(bannertext[1]);
-					}
-				} break;
-
-				case 'o':
-					REQUIRED(logofilename);
-					break;
-
-				case 'h':	// load header or header size
-					REQUIRED(headerfilename_or_size);
-					break;
-
-				/*case 'u':	// unique ID file
-					REQUIRED(uniquefilename);
-					break;*/
-
-				case 'u': // DSi title ID high word
-					if (argc > a)
-						titleidHigh = strtoul(argv[++a], 0, 16);
-					break;
-
-				case 'z': // SCFG access flags
-					if (argc > a)
-						scfgExtMask = strtoul(argv[++a], 0, 16);
-					break;
-
-				case 'a': // DSi access control flags
-					if (argc > a)
-						accessControl = strtoul(argv[++a], 0, 16);
-					break;
-
-				case 'p': // DSi application flags
-					if (argc > a)
-						appFlags = strtoul(argv[++a], 0, 16) & 0xFF;
-					break;
-
-				case 'q': // DSi ARM7 WRAM_A map address
-					if (argc > a)
-						mbkArm7WramMapAddress = strtoul(argv[++a], 0, 16);
-					break;
-
-				case 'v':	// verbose
-					for (char *p=argv[a]; *p; p++) if (*p == 'v') verbose++;
-					break;
-
-				case 'n':	// latency
-					//compatibility = true;
-					OPTIONAL_INT(latency1);
-					OPTIONAL_INT(latency2);
-					break;
-
-				case 'r':	// RAM address
-					switch (argv[a][2])
-					{
-						case '7': arm7RamAddress = (argc > a) ? strtoul(argv[++a], 0, 0) : 0; break;
-						case '9': arm9RamAddress = (argc > a) ? strtoul(argv[++a], 0, 0) : 0; break;
-						default: Help(argv[a]); return 1;
-					}
-					break;
-
-				case 'e':	// entry point
-					switch (argv[a][2])
-					{
-						case '7': arm7Entry = (argc > a) ? strtoul(argv[++a], 0, 0) : 0; break;
-						case '9': arm9Entry = (argc > a) ? strtoul(argv[++a], 0, 0) : 0; break;
-						default: Help(argv[a]); return 1;
-					}
-					break;
-
-				case 'm':	// maker code
-					REQUIRED(makercode);
-					break;
-
-				case 'g':	// game code
-					REQUIRED(gamecode);
-					OPTIONAL(makercode);
-					OPTIONAL(title);
-					OPTIONAL_INT(romversion);
-					break;
-
-				case 'y':	// overlay table file / directory
-					switch (argv[a][2])
-					{
-						case '7': REQUIRED(arm7ovltablefilename); break;
-						case '9': REQUIRED(arm9ovltablefilename); break;
-						case 0: REQUIRED(overlaydir); break;
-						default: Help(argv[a]); return 1;
-					}
-					break;
-				
-				case '?':	// global or specific help
-				{
-					Help(argv[a][2] ? argv[a]+2 : 0);	// 0=global help
-					return 0;	// do not perform any other actions
-				}
-
-				default:
-				{
-					Help(argv[a]);
+				if (++filemask_num >= MAX_FILEMASKS)
 					return 1;
-				}
 			}
+		}
+		else if (strcmp(argv[a], "-c") == 0) // Create
+		{
+			ADDACTION(ACTION_CREATE);
+			OPTIONAL(ndsfilename);
+		}
+		else if (strcmp(argv[a], "-d") == 0) // File root directory
+		{
+			REQUIRED(filerootdir);
+		}
+		else if (strcmp(argv[a], "-7i") == 0) // ARM7i filename
+		{
+			REQUIRED(arm7ifilename);
+		}
+		else if (strcmp(argv[a], "-7") == 0) // ARM7 filename
+		{
+			REQUIRED(arm7filename);
+		}
+		else if (strcmp(argv[a], "-9i") == 0) // ARM9i filename
+		{
+			REQUIRED(arm9ifilename);
+		}
+		else if (strcmp(argv[a], "-9") == 0) // ARM9 filename
+		{
+			REQUIRED(arm9filename);
+		}
+		else if (strcmp(argv[a], "-t") == 0)
+		{
+			REQUIRED(bannerfilename);
+			bannertype = BANNER_BINARY;
+		}
+		else if (strncmp(argv[a], "-bt", 3) == 0)
+		{
+			bannertype = BANNER_IMAGE;
+			int text_idx = 1;
+			if (argv[a][3] >= '0' && argv[a][3] <= '9')
+				text_idx = atoi(argv[a] + 3);
+
+			if (text_idx <= MAX_BANNER_TITLE_COUNT)
+			{
+				REQUIRED(bannertext[text_idx]);
+			}
+			else
+			{
+				char *skip;
+				REQUIRED(skip);
+				(void) skip;
+			}
+		}
+		else if (strcmp(argv[a], "-bi") == 0)
+		{
+			bannertype = BANNER_IMAGE;
+			REQUIRED(bannerfilename);
+		}
+		else if (strcmp(argv[a], "-ba") == 0)
+		{
+			bannertype = BANNER_IMAGE;
+			REQUIRED(banneranimfilename);
+		}
+		else if (strcmp(argv[a], "-b") == 0)
+		{
+			bannertype = BANNER_IMAGE;
+			REQUIRED(bannerfilename);
+			banneranimfilename = bannerfilename;
+			OPTIONAL(bannertext[1]);
+		}
+		else if (strcmp(argv[a], "-o") == 0)
+		{
+			REQUIRED(logofilename);
+		}
+		else if (strcmp(argv[a], "-h") == 0) // Load header or header size
+		{
+			REQUIRED(headerfilename_or_size);
+		}
+		else if (strcmp(argv[a], "-u") == 0) // DSi title ID high word
+		{
+			if (argc > a)
+				titleidHigh = strtoul(argv[++a], 0, 16);
+		}
+		else if (strcmp(argv[a], "-z") == 0) // SCFG access flags
+		{
+			if (argc > a)
+				scfgExtMask = strtoul(argv[++a], 0, 16);
+		}
+		else if (strcmp(argv[a], "-a") == 0) // DSi access control flags
+		{
+			if (argc > a)
+				accessControl = strtoul(argv[++a], 0, 16);
+		}
+		else if (strcmp(argv[a], "-p") == 0) // DSi application flags
+		{
+			if (argc > a)
+				appFlags = strtoul(argv[++a], 0, 16) & 0xFF;
+		}
+		else if (strcmp(argv[a], "-q") == 0) // DSi ARM7 WRAM_A map address
+		{
+			if (argc > a)
+				mbkArm7WramMapAddress = strtoul(argv[++a], 0, 16);
+		}
+		else if (strcmp(argv[a], "-v") == 0) // Verbose
+		{
+			verbose = 1;
+		}
+		else if (strcmp(argv[a], "-vv") == 0) // More verbose
+		{
+			verbose = 2;
+		}
+		else if (strcmp(argv[a], "-n") == 0) // Latency
+		{
+			OPTIONAL_INT(latency1);
+			OPTIONAL_INT(latency2);
+		}
+		else if (strcmp(argv[a], "-r7") == 0) // ARM7 RAM address
+		{
+			arm7RamAddress = (argc > a) ? strtoul(argv[++a], 0, 0) : 0;
+		}
+		else if (strcmp(argv[a], "-r9") == 0) // ARM9 RAM address
+		{
+			arm9RamAddress = (argc > a) ? strtoul(argv[++a], 0, 0) : 0;
+		}
+		else if (strcmp(argv[a], "-e7") == 0) // ARM7 entrypoint
+		{
+			arm7Entry = (argc > a) ? strtoul(argv[++a], 0, 0) : 0;
+		}
+		else if (strcmp(argv[a], "-e9") == 0) // ARM9 entrypoint
+		{
+			arm9Entry = (argc > a) ? strtoul(argv[++a], 0, 0) : 0;
+		}
+		else if (strcmp(argv[a], "-m") == 0) // Maker code
+		{
+			REQUIRED(makercode);
+		}
+		else if (strcmp(argv[a], "-g") == 0) // Game code
+		{
+			REQUIRED(gamecode);
+			OPTIONAL(makercode);
+			OPTIONAL(title);
+			OPTIONAL_INT(romversion);
+		}
+		else if (strcmp(argv[a], "-y7") == 0) // ARM7 overlay table file
+		{
+			REQUIRED(arm7ovltablefilename);
+		}
+		else if (strcmp(argv[a], "-y9") == 0) // ARM9 overlay table file
+		{
+			REQUIRED(arm9ovltablefilename);
+		}
+		else if (strcmp(argv[a], "-y") == 0) // Overlay table directory
+		{
+			REQUIRED(overlaydir);
+		}
+		else if (strcmp(argv[a], "-?") == 0) // Global or specific help
+		{
+			char *helpoption = 0;
+			OPTIONAL(helpoption);
+			Help(helpoption);
+			return 0; // Do not perform any other actions
 		}
 		else
 		{
-			//Help();
 			if (ndsfilename)
 			{
 				fprintf(stderr, "NDS filename is already given!\n");
