@@ -251,18 +251,21 @@ int main(int argc, char *argv[])
 		{
 			while (1)
 			{
-				char *filemask = 0;
-				if (argc > a)
-					filemask = argv[a++];
-
-				if (!(filemasks[filemask_num] = filemask))
+				// No more arguments
+				if (argc == a)
 					break;
 
-				if (++filemask_num >= MAX_FILEMASKS)
+				// Detect next program option and exit loop
+				if (argv[a][0] == '-')
+					break;
+
+				if (filemask_num == MAX_FILEMASKS)
 				{
 					fprintf(stderr, "Too many file masks\n");
 					return EXIT_FAILURE;
 				}
+
+				filemasks[filemask_num++] = argv[a++];
 			}
 		}
 		else if (strcmp(arg, "-c") == 0) // Create
