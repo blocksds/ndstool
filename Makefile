@@ -11,7 +11,7 @@ INCLUDEDIRS	:= source
 # Defines passed to all files
 # ---------------------------
 
-DEFINES		:= -DPACKAGE_VERSION=\"2.2.1\"
+DEFINES		:= -DPACKAGE_VERSION=\"2.3.0\"
 
 # Libraries
 # ---------
