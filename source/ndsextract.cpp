@@ -7,7 +7,7 @@
 /*
  * MkDir
  */
-void MkDir(char *name)
+void MkDir(const char *name)
 {
 #ifdef __MINGW32__
 	if (mkdir(name))

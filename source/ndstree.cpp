@@ -25,12 +25,18 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 	//printf("%s\n", path);
 
 	DIR *dir = opendir(path);
-	if (!dir) { fprintf(stderr, "Cannot open directory '%s'.\n", path); exit(1); }
+	if (!dir)
+	{
+		fprintf(stderr, "Cannot open directory '%s'.\n", path);
+		exit(1);
+	}
 
 	struct dirent *de;
 	while ((de = readdir(dir)))
 	{
-		if (!strncmp(de->d_name, ".", 1)) continue; // exclude all directories starting with .
+		// Exclude all directories starting with .
+		if (!strncmp(de->d_name, ".", 1))
+			continue;
 
 		char strbuf[MAXPATHLEN];
 		strcpy(strbuf, path);
@@ -39,7 +45,11 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 		//printf("%s\n", strbuf);
 
 		struct stat st;
-		if (stat(strbuf, &st)) { fprintf(stderr, "Cannot get stat of '%s'.\n", strbuf); exit(1); }
+		if (stat(strbuf, &st))
+		{
+			fprintf(stderr, "Cannot get stat of '%s'.\n", strbuf);
+			exit(1);
+		}
 
 		//if (S_ISDIR(st.st_mode) && !subdirs) continue;		// skip subdirectories
 
@@ -65,6 +75,7 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 	}
 	closedir(dir);
 
-	while (node->prev) node = node->prev;	// return first
+	while (node->prev)
+		node = node->prev;	// return first
 	return node;
 }
