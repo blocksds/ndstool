@@ -16,14 +16,19 @@
 int verbose = 0;
 Header header;
 FILE *fNDS = 0;
+
 char *filemasks[MAX_FILEMASKS];
 int filemask_num = 0;
+
 char *ndsfilename = 0;
 char *arm7filename = 0;
 char *arm9filename = 0;
 char *arm7ifilename = 0;
 char *arm9ifilename = 0;
-char *filerootdir = 0;
+
+int filerootdirs_num = 0;
+char *filerootdirs[MAX_FILEROOTDIRS];
+
 char *overlaydir = 0;
 char *arm7ovltablefilename = 0;
 char *arm9ovltablefilename = 0;
@@ -100,7 +105,7 @@ ArgInfo arguments[] =
 	{"7i",  1, "  ARM7i executable\n-7i file.bin"},
 	{"y9",  1, "  ARM9 overlay table\n-y9 file.bin"},
 	{"y7",  1, "  ARM7 overlay table\n-y7 file.bin"},
-	{"d",   1, "  Data files\n-d directory"},
+	{"d",   1, "  NitroFS root folder\n-d directory1 <directory2> ...\nAll directories are combined in the root of the filesystem"},
 	{"y",   1, "  Overlay files\n-y directory"},
 	{"b",   1, "  Banner icon/text\n-b file.[bmp|gif|png] \"text;text;text\"\nThe three lines are shown at different sizes."},
 	{"ba",  1, "  Banner animated icon\n-ba file.[bmp|gif|png]"},
@@ -276,7 +281,24 @@ int main(int argc, char *argv[])
 		}
 		else if (strcmp(arg, "-d") == 0) // File root directory
 		{
-			filerootdir = argv[a++];
+			while (1)
+			{
+				// No more arguments
+				if (argc == a)
+					break;
+
+				// Detect next program option and stop
+				if (argv[a][0] == '-')
+					break;
+
+				if (filerootdirs_num == MAX_FILEROOTDIRS)
+				{
+					fprintf(stderr, "Too many root directories");
+					return EXIT_FAILURE;
+				}
+
+				filerootdirs[filerootdirs_num++] = argv[a++];
+			}
 		}
 		else if (strcmp(arg, "-7i") == 0) // ARM7i filename
 		{
@@ -528,7 +550,7 @@ int main(int argc, char *argv[])
 				if (arm9ovltablefilename) Extract(arm9ovltablefilename, true, 0x50, true, 0x54);
 				if (arm7ovltablefilename) Extract(arm7ovltablefilename, true, 0x58, true, 0x5C);
 				if (overlaydir) ExtractOverlayFiles();
-				if (filerootdir) ExtractFiles(ndsfilename, filerootdir);
+				if (filerootdirs_num > 0) ExtractFiles(ndsfilename, filerootdirs[0]);
 				break;
 			}
 

@@ -134,18 +134,25 @@ int CopyFromBin(char *binFilename, unsigned int *size = 0, unsigned int *size_wi
 	return 0;
 }
 
-/*
- * AddFile
- */
-void AddFile(const char *rootdir, const char *prefix, const char *entry_name, unsigned int file_id)
+// If fs_path is provided, it will be used as the full path of the file in the
+// filesystem of the host. If it isn't, it will be formed from the other
+// arguments as "rootdir + prefix + entry_name".
+static void AddFile(const char *fs_path, const char *rootdir, const char *prefix,
+					const char *entry_name, unsigned int file_id)
 {
-	// make filename
+	// Make filename
 	char strbuf[MAXPATHLEN];
-	strcpy(strbuf, rootdir);
-	strcat(strbuf, prefix);
-	strcat(strbuf, entry_name);
 
-	//unsigned int file_end = ftell(fNDS);
+	if (fs_path) // If it has been provided directly
+	{
+		strcpy(strbuf, fs_path);
+	}
+	else
+	{
+		strcpy(strbuf, rootdir);
+		strcat(strbuf, prefix);
+		strcat(strbuf, entry_name);
+	}
 
 	file_top = (file_top + file_align) &~ file_align;
 	fseek(fNDS, file_top, SEEK_SET);
@@ -260,7 +267,7 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
 
 		if (!t->directory)
 		{
-			AddFile(filerootdir, prefix, t->name, local_file_id++);
+			AddFile(t->fs_path, NULL, prefix, t->name, local_file_id++);
 		}
 	}
 
@@ -516,17 +523,23 @@ void Create()
 	}
 
 	// filesystem
-	//if (filerootdir || overlaydir)
+	//if ((filerootdirs_num > 0) || overlaydir)
 	{
 		// read directory structure
 		free_file_id = overlay_files;
 		free_dir_id++;
 		directory_count++;
 		TreeNode *filetree;
-		if (filerootdir)
-			filetree = ReadDirectory(new TreeNode(), filerootdir);
-		else
+		if (filerootdirs_num == 0)
+		{
 			filetree = new TreeNode();		// dummy root node 0xF000
+		}
+		else
+		{
+			filetree = new TreeNode();
+			for (int i = 0; i < filerootdirs_num; i++)
+				ReadDirectory(filetree, filerootdirs[i]);
+		}
 
 		// calculate offsets required for FNT and FAT
 		_entry_start = 8*directory_count;		// names come after directory structs
@@ -594,7 +607,7 @@ void Create()
 		for (unsigned int i=0; i<overlay_files; i++)
 		{
 			char s[32]; sprintf(s, OVERLAY_FMT, i/*free_file_id*/);
-			AddFile(overlaydir, "/", s, i/*free_file_id*/);
+			AddFile(NULL, overlaydir, "/", s, i/*free_file_id*/);
 			//free_file_id++;		// incremented up to overlay_files
 		}
 

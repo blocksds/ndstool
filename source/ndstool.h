@@ -21,6 +21,8 @@
 
 #define MAX_FILEMASKS		16
 
+#define MAX_FILEROOTDIRS	32
+
 enum { BANNER_NONE, BANNER_BINARY, BANNER_IMAGE };
 
 extern unsigned int free_file_id;
@@ -43,7 +45,8 @@ extern int filemask_num;
 extern char *ndsfilename;
 extern char *arm7filename;
 extern char *arm9filename;
-extern char *filerootdir;
+extern int filerootdirs_num;
+extern char *filerootdirs[MAX_FILEROOTDIRS];
 extern char *overlaydir;
 extern char *arm7ovltablefilename;
 extern char *arm9ovltablefilename;

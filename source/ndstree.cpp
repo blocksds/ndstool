@@ -22,6 +22,12 @@ unsigned int free_file_id = 0;		// incremented in AddDirectory
  */
 TreeNode *ReadDirectory(TreeNode *node, char *path)
 {
+	TreeNode *first = node;
+
+	// Start adding nodes from the end of the list
+	while (node->next)
+		node = node->next;
+
 	//printf("%s\n", path);
 
 	DIR *dir = opendir(path);
@@ -57,14 +63,52 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 
 		if (S_ISDIR(st.st_mode))
 		{
-			node = node->New(de->d_name, true);
-			node->dir_id = free_dir_id++;
-			directory_count++;
-			node->directory = ReadDirectory(new TreeNode(), strbuf);
+			// Check if this directory is already in one of the nodes. If it's
+			// there, open the directory node and add new files. If not, create
+			// a new directory node.
+			TreeNode *found = first->Find(de->d_name);
+			bool dir_found = false;
+			if (found)
+			{
+				if (found->directory)
+				{
+					// There is a directory with the same name, we can combine
+					// the files in both.
+					dir_found = true;
+				}
+				else
+				{
+					// There is a file with the same name, so we can't create
+					// this directory.
+					fprintf(stderr, "Trying to create directory but a file with the same name already exists: %s\n", strbuf);
+					exit(EXIT_FAILURE);
+				}
+			}
+
+			if (dir_found)
+			{
+				// Add more files to the old list
+				ReadDirectory(found->directory, strbuf);
+			}
+			else
+			{
+				node = node->New(strbuf, de->d_name, true);
+				node->dir_id = free_dir_id++;
+				directory_count++;
+				node->directory = ReadDirectory(new TreeNode(), strbuf);
+			}
 		}
 		else if (S_ISREG(st.st_mode))
 		{
-			node = node->New(de->d_name, false);
+			// Check if there's already a file or directory with the same name
+			TreeNode *found = first->Find(de->d_name);
+			if (found)
+			{
+				fprintf(stderr, "Trying to create file but an entry with the same name already exists: %s\n", strbuf);
+				exit(EXIT_FAILURE);
+			}
+
+			node = node->New(strbuf, de->d_name, false);
 			file_count++;
 		}
 		else
