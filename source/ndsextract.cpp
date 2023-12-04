@@ -109,7 +109,7 @@ bool MatchName(char *name, char *mask, int level=0)
  * ExtractDirectory
  * filerootdir can be 0 for just listing files
  */
-void ExtractDirectory(const char *prefix, unsigned int dir_id)
+void ExtractDirectory(const char *filerootdir, const char *prefix, unsigned int dir_id)
 {
 	char strbuf[MAXPATHLEN];
 	unsigned int save_filepos = ftell(fNDS);
@@ -158,7 +158,7 @@ void ExtractDirectory(const char *prefix, unsigned int dir_id)
 			strcpy(strbuf, prefix);
 			strcat(strbuf, entry_name);
 			strcat(strbuf, "/");
-			ExtractDirectory(strbuf, dir_id);
+			ExtractDirectory(filerootdir, strbuf, dir_id);
 		}
 		else
 		{
@@ -188,19 +188,16 @@ void ExtractDirectory(const char *prefix, unsigned int dir_id)
 /*
  * ExtractFiles
  */
-void ExtractFiles(char *ndsfilename)
+void ExtractFiles(char *ndsfilename, const char *filerootdir)
 {
-//printf("%d\n", MatchName("hello", "h*el*lo")); exit(0);		// TEST
 	fNDS = fopen(ndsfilename, "rb");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
 	fread(&header, 512, 1, fNDS);
 
 	if (filerootdir)
-	{
 		MkDir(filerootdir);
-	}
 
-	ExtractDirectory("/", 0xF000);		// list or extract
+	ExtractDirectory(filerootdir, "/", 0xF000); // list or extract
 
 	fclose(fNDS);
 }

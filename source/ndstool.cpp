@@ -528,7 +528,7 @@ int main(int argc, char *argv[])
 				if (arm9ovltablefilename) Extract(arm9ovltablefilename, true, 0x50, true, 0x54);
 				if (arm7ovltablefilename) Extract(arm7ovltablefilename, true, 0x58, true, 0x5C);
 				if (overlaydir) ExtractOverlayFiles();
-				if (filerootdir) ExtractFiles(ndsfilename);
+				if (filerootdir) ExtractFiles(ndsfilename, filerootdir);
 				break;
 			}
 
@@ -537,8 +537,7 @@ int main(int argc, char *argv[])
 				break;
 
 			case ACTION_LISTFILES:
-				filerootdir = 0;
-				/*status =*/ ExtractFiles(ndsfilename);
+				ExtractFiles(ndsfilename, NULL); // List mode
 				break;
 		}
 	}
