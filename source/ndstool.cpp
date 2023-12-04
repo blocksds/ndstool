@@ -225,31 +225,31 @@ int main(int argc, char *argv[])
 		if (strcmp(arg, "-i") == 0) // Show information
 		{
 			ADDACTION(ACTION_SHOWINFO);
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
 		else if (strcmp(arg, "-fh") == 0) // Fix header CRC
 		{
 			ADDACTION(ACTION_FIXHEADERCRC);
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
 		else if (strcmp(arg, "-fb") == 0) // Fix banner CRC
 		{
 			ADDACTION(ACTION_FIXBANNERCRC);
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
 		else if (strcmp(arg, "-l") == 0) // List files
 		{
 			ADDACTION(ACTION_LISTFILES);
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
 		else if (strcmp(arg, "-x") == 0) // Extract
 		{
 			ADDACTION(ACTION_EXTRACT);
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
 		else if (strcmp(arg, "-w") == 0) // Wildcard filemasks
@@ -276,7 +276,7 @@ int main(int argc, char *argv[])
 		else if (strcmp(arg, "-c") == 0) // Create
 		{
 			ADDACTION(ACTION_CREATE);
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
 		else if (strcmp(arg, "-d") == 0) // File root directory
@@ -352,7 +352,7 @@ int main(int argc, char *argv[])
 			bannerfilename = argv[a++];
 			banneranimfilename = bannerfilename;
 
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
 				bannertext[1] = argv[a++];
 		}
 		else if (strcmp(arg, "-o") == 0)
@@ -419,12 +419,16 @@ int main(int argc, char *argv[])
 		else if (strcmp(arg, "-g") == 0) // Game code
 		{
 			gamecode = argv[a++];
-			if (argc > a)
+			if (argc > a && argv[a][0] != '-')
+			{
 				makercode = argv[a++];
-			if (argc > a)
-				title = argv[a++];
-			if (argc > a)
-				romversion = strtoul(argv[a++], 0, 0);
+				if (argc > a && argv[a][0] != '-')
+				{
+					title = argv[a++];
+					if (argc > a && argv[a][0] != '-')
+						romversion = strtoul(argv[a++], 0, 0);
+				}
+			}
 		}
 		else if (strcmp(arg, "-y7") == 0) // ARM7 overlay table file
 		{
