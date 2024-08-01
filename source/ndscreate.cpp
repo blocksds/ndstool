@@ -592,13 +592,16 @@ void Create()
 			}
 			else
 			{
-				file_top = header.fat_offset + header.fat_size;
 				header.banner_offset = 0;
 				header.banner_size = 0;
 			}
 
-			file_top = header.banner_offset + bannersize;
 			header.banner_size = bannersize;
+
+			if (header.banner_offset)
+				file_top = header.banner_offset + header.banner_size;
+			else
+				file_top = header.fat_offset + header.fat_size;
 		}
 
 		file_end = file_top;	// no file data as yet
