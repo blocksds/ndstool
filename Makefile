@@ -8,10 +8,20 @@
 SOURCEDIRS	:= source
 INCLUDEDIRS	:= source
 
+# Try to find the SDK version if it wasn't already provided e.g. by the parent Makefile
+SDK_VERSION	?= $(shell git describe --tags --exact-match --dirty 2>/dev/null)
+
+# Fallback to commit hash
+ifeq ($(SDK_VERSION),)
+    VERSION_ID	:= "commit $(shell git describe --always --dirty 2>/dev/null)"
+else
+    VERSION_ID	:= "BlocksDS $(SDK_VERSION)"
+endif
+
 # Defines passed to all files
 # ---------------------------
 
-DEFINES		:= -DPACKAGE_VERSION=\"2.3.0\"
+DEFINES		:= -DVERSION_ID=\"$(VERSION_ID)\"
 
 # Libraries
 # ---------

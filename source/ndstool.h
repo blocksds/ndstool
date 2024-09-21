@@ -74,5 +74,3 @@ extern char *gamecode;
 extern int latency1;
 extern int latency2;
 extern unsigned int romversion;
-
-extern const char CompileDate[];
