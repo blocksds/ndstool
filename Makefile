@@ -13,7 +13,8 @@ SDK_VERSION	?= $(shell git describe --tags --exact-match --dirty 2>/dev/null)
 
 # Fallback to commit hash
 ifeq ($(SDK_VERSION),)
-    VERSION_ID	:= "commit $(shell git describe --always --dirty 2>/dev/null)"
+    # --exclude to prevent any older tags from being displayed
+    VERSION_ID	:= "commit $(shell git describe --always --dirty --exclude '*' 2>/dev/null)"
 else
     VERSION_ID	:= "BlocksDS $(SDK_VERSION)"
 endif
