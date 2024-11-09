@@ -33,5 +33,6 @@ int GetBannerLanguageCount(unsigned short version);
 unsigned int CalcBannerSize(unsigned short version);
 unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot);
 unsigned short CalcBannerCRC(Banner &banner, unsigned short slot, unsigned int bannersize);
+void IconToBMP();
 void IconFromBMP();
 void IconFromGRF();

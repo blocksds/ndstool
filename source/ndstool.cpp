@@ -353,6 +353,7 @@ int main(int argc, char *argv[])
 		else if (strcmp(arg, "-b") == 0)
 		{
 			bannertype = BANNER_IMAGE;
+
 			bannerfilename = argv[a++];
 			banneranimfilename = bannerfilename;
 
@@ -552,7 +553,12 @@ int main(int argc, char *argv[])
 					if (arm9ifilename) Extract(arm9ifilename, true, 0x1C0, true, 0x1CC, true);
 					if (arm7ifilename) Extract(arm7ifilename, true, 0x1D0, true, 0x1DC);
 				}
-				if (bannerfilename) Extract(bannerfilename, true, 0x68, false, bannersize);
+				if (bannerfilename) {
+					if (bannertype == BANNER_BINARY)
+						Extract(bannerfilename, true, 0x68, false, bannersize);
+					else if (bannertype == BANNER_IMAGE)
+						IconToBMP();
+				}
 				if (headerfilename_or_size) Extract(headerfilename_or_size, false, 0x0, false, headersize);
 				if (logofilename) Extract(logofilename, false, 0xC0, false, 156);	// *** bin only
 				if (arm9ovltablefilename) Extract(arm9ovltablefilename, true, 0x50, true, 0x54);

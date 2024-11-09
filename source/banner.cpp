@@ -216,11 +216,52 @@ static void IconRasterToBanner(const RasterImage &bmp, int frame, unsigned char 
 	{
 		if (i < bmp.palette_count[frame])
 		{
-			palette[i] = RasterRgbQuad(bmp.palette[frame][i]).rgb15();
+			palette[i] = RasterRgbQuad(bmp.palette[frame][i], false).rgb15();
 		}
 		else
 		{
 			palette[i] = 0;
+		}
+	}
+}
+
+static void IconBannerToRaster(const unsigned char tile_data[4][4][8][4], unsigned_short palette[16], RasterImage &bmp, int frame)
+{
+	// tile data (4 bit / tile, 4x4 total tiles)
+	// 32 bytes per tile (in 4 bit mode)
+	for (int row=0; row<4; row++)
+	{
+		for (int col=0; col<4; col++)
+		{
+			for (int y=0; y<8; y++)
+			{
+				for (int x=0; x<8; x+=2)
+				{
+					unsigned int b0 = tile_data[row][col][y][x >> 1] & 0xF;
+					unsigned int b1 = tile_data[row][col][y][x >> 1] >> 4;
+
+					if (bmp.has_palette)
+					{
+						bmp.set_data(frame, col*8 + x, row*8 + y, b0);
+						bmp.set_data(frame, col*8 + x + 1, row*8 + y, b1);
+					}
+					else
+					{
+						bmp.set_data(frame, col*8 + x, row*8 + y, RasterRgbQuad(palette[b0], true).rgb24());
+						bmp.set_data(frame, col*8 + x + 1, row*8 + y, RasterRgbQuad(palette[b1], true).rgb24());
+					}
+				}
+			}
+		}
+	}
+
+	// palette
+	if (bmp.has_palette)
+	{
+		bmp.palette_count[frame] = 16;
+		for (unsigned int i = 0; i < 16; i++)
+		{
+			bmp.palette[frame][i] = RasterRgbQuad(palette[i], true).rgb24();
 		}
 	}
 }
@@ -241,9 +282,24 @@ static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int in_de
 	return delay | (frame_entry << 8) | (frame_entry << 11) | (flip_h ? (1 << 14) : 0) | (flip_v ? (1 << 15) : 0);
 }
 
-/*
- * IconFromBMP
- */
+void IconToBMP()
+{
+	fNDS = fopen(ndsfilename, "rb");
+	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+
+	Banner banner;
+	fseek(fNDS, header.banner_offset, SEEK_SET);
+	fread(&banner, 1, sizeof(banner), fNDS);
+
+	fclose(fNDS);
+
+	RasterImage bmp(32, 32, 1, 3);
+	IconBannerToRaster(banner.tile_data, banner.palette, bmp, 0);
+
+	if (bannerfilename == NULL) bannerfilename = banneranimfilename;
+	bmp.saveFile(bannerfilename);
+}
+
 void IconFromBMP()
 {
 	RasterImage *bmp, *bmp_anim;

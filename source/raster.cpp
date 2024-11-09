@@ -9,7 +9,11 @@
 #define STBI_ONLY_PNG
 #define STBI_ONLY_BMP
 #define STBI_ONLY_GIF
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-function"
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #include "stb_image.h"
+#pragma GCC diagnostic pop
 
 bool IsRasterImageExtensionFilename(const char *filename) {
 	if (filename == NULL) return false;
@@ -116,6 +120,48 @@ bool RasterImage::loadStb(void *_ctx, const char *filename) {
 		return false;
 	}
 
+	return true;
+}
+
+typedef struct __attribute__((packed)) {
+	uint16_t magic = 0x4D42;
+	uint32_t size;
+	uint16_t reserved[2];
+	uint32_t offset;
+	uint32_t core_header_size = 12;
+	uint16_t width;
+	uint16_t height;
+	uint16_t planes = 1;
+	uint16_t bpp;
+} bmp_header_t;
+
+bool RasterImage::saveFile(const char *filename) {
+	// TODO: Support saving images which are not unpaletted BMPs.
+	// (Probably during the migration to libplum.)
+
+	if (has_palette) return false;
+	if (frames > 1) return false;
+	if (components != 3) return false;
+
+	FILE *f = fopen(filename, "wb");
+	if (!f) return false;
+
+	bmp_header_t header;
+	header.size = sizeof(bmp_header_t) + (width * height * 3);
+	header.offset = sizeof(bmp_header_t);
+	header.width = width;
+	header.height = height;
+	header.bpp = get_component_size() * 8;
+	if (fwrite(&header, sizeof(header), 1, f) <= 0) return false;
+	for (int y = height - 1; y >= 0; y--) {
+		for (int x = 0; x < width; x++) {
+			if (fputc((get_data(0, x, y) >> 16) & 0xFF, f) < 0) return false;
+			if (fputc((get_data(0, x, y) >> 8) & 0xFF, f) < 0) return false;
+			if (fputc(get_data(0, x, y) & 0xFF, f) < 0) return false;
+		}
+	}
+
+	fclose(f);
 	return true;
 }
 
