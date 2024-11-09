@@ -103,7 +103,7 @@ bool HasElfHeader(char *filename)
 /*
  * CopyFromBin
  */
-int CopyFromBin(char *binFilename, unsigned int *size = 0, unsigned int *size_without_footer = 0)
+int CopyFromBin(const char *binFilename, unsigned int *size = 0, unsigned int *size_without_footer = 0)
 {
 	FILE *fi = fopen(binFilename, "rb");
 	if (!fi) { fprintf(stderr, "Cannot open file '%s'.\n", binFilename); exit(1); }
@@ -376,7 +376,7 @@ void Create()
 		if (IsRasterImageExtensionFilename(logofilename))
 		{
 			RasterImage raster;
-			if (!raster.load(logofilename)) exit(1);
+			if (!raster.loadFile(logofilename)) exit(1);
 			if (!LogoConvert(raster, header.logo)) exit(1);
 		}
 		else
@@ -560,7 +560,7 @@ void Create()
 			fseek(fNDS, header.banner_offset, SEEK_SET);
 			if (bannertype == BANNER_IMAGE)
 			{
-				char * Ext = bannerfilename == NULL ? NULL : strrchr(bannerfilename, '.');
+				const char * Ext = bannerfilename == NULL ? NULL : strrchr(bannerfilename, '.');
 				if (Ext && strcasecmp(Ext, ".grf") == 0)
 				{
 					IconFromGRF();

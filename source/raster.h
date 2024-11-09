@@ -131,14 +131,17 @@ struct RasterImage
 	}
 
 	// Returns a cloned RasterImage with the specific transformations applied.
-	RasterImage clone(bool flip_h = false, bool flip_v = false) const;
+	RasterImage *clone(bool flip_h = false, bool flip_v = false) const;
 
 	// Return the maximum palette count across all frames.
 	int max_palette_count(void) const;
 
 	// Load an image file. BMP, GIF and PNG files are supported.
 	// For animation, only GIF files are supported.
-	bool load(char *filename);
+	bool loadFile(const char *filename);
+
+	// Load an image file from memory.
+	bool loadBuffer(const void *data, size_t length, const char *name);
 
 	// Quantize the color-values to match the RGB15 format (1-bit alpha, 5-bit colors).
 	bool quantize_rgb15(void);
@@ -148,6 +151,9 @@ struct RasterImage
 
 	// Convert a paletted image such that index 0, and only index 0, is transparent.
 	bool make_zero_transparent(void);
+
+protected:
+	bool loadStb(void *ctx, const char *filename);
 };
 
 // The == operator checks for pixel-level equivalency, not data-level equivalency.

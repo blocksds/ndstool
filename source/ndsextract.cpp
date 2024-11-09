@@ -1,6 +1,7 @@
 // SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 
 #include "ndstool.h"
+#include "ndsextract.h"
 #include "overlay.h"
 #include <errno.h>
 
@@ -188,7 +189,7 @@ void ExtractDirectory(const char *filerootdir, const char *prefix, unsigned int 
 /*
  * ExtractFiles
  */
-void ExtractFiles(char *ndsfilename, const char *filerootdir)
+void ExtractFiles(const char *ndsfilename, const char *filerootdir)
 {
 	fNDS = fopen(ndsfilename, "rb");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
@@ -246,7 +247,7 @@ void ExtractOverlayFiles()
 /*
  * Extract
  */
-void Extract(char *outfilename, bool indirect_offset, unsigned int offset, bool indirect_size, unsigned size, bool with_footer)
+void Extract(const char *outfilename, bool indirect_offset, unsigned int offset, bool indirect_size, unsigned size, bool with_footer)
 {
 	fNDS = fopen(ndsfilename, "rb");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }

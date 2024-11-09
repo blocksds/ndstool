@@ -32,8 +32,8 @@ char *filerootdirs[MAX_FILEROOTDIRS];
 char *overlaydir = 0;
 char *arm7ovltablefilename = 0;
 char *arm9ovltablefilename = 0;
-char *bannerfilename = 0;
-char *banneranimfilename = 0;
+const char *bannerfilename = 0;
+const char *banneranimfilename = 0;
 const char *bannertext[MAX_BANNER_TITLE_COUNT] = {0};
 unsigned int bannersize = 0x840;
 char *headerfilename_or_size = 0;
@@ -110,7 +110,7 @@ ArgInfo arguments[] =
 	{"b",   1, "  Banner icon/text\n-b file.[bmp|gif|png] \"text;text;text\"\nThe three lines are shown at different sizes."},
 	{"ba",  1, "  Banner animated icon\n-ba file.[bmp|gif|png]"},
 	{"bi",  1, "  Banner static icon\n-bi file.[bmp|gif|png]"},
-	{"bt",  2, "  Banner text\n-bt 0 \"region;specific;text\""},
+	{"bt",  2, "  Banner text\n-bt [langid] \"region;specific;text\""},
 	{"t",   1, "  Banner binary\n-t file.bin"},
 	{"h",   1, "  Header size/template\n-h size/file.bin\nIf a ROM file is provided, it uses that file as template for the header. If a size is provided, it sets the size of the header. A header size of 0x4000 is default for real cards and newer homebrew, 0x200 for older homebrew."},
 	{"n",   2, "  Latency\n-n [L1] [L2]\ndefault=maximum"},
@@ -327,7 +327,11 @@ int main(int argc, char *argv[])
 
 			unsigned int text_idx = strtoul(argv[a++], 0, 0);
 
-			if ((errno == EINVAL) || (text_idx >= MAX_BANNER_TITLE_COUNT))
+			if (errno == EINVAL)
+			{
+				text_idx = 1;
+			}
+			else if (text_idx >= MAX_BANNER_TITLE_COUNT)
 			{
 				fprintf(stderr, "The argument for '-bt' must be a number between 0 and %d\n",
 						MAX_BANNER_TITLE_COUNT - 1);

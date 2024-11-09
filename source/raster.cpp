@@ -9,11 +9,7 @@
 #define STBI_ONLY_PNG
 #define STBI_ONLY_BMP
 #define STBI_ONLY_GIF
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunused-parameter"
-#pragma GCC diagnostic ignored "-Wtype-limits"
 #include "stb_image.h"
-#pragma GCC diagnostic pop
 
 bool IsRasterImageExtensionFilename(const char *filename) {
 	if (filename == NULL) return false;
@@ -50,9 +46,12 @@ void RasterImage::set_data(int z, int x, int y, unsigned int v) {
 	}
 }
 
-bool RasterImage::load(char *filename) {
+bool RasterImage::loadFile(const char *filename) {
 	stbi__context ctx;
-	stbi__result_info res;
+	
+	data = NULL;
+	delays = NULL;
+
 	FILE *f = stbi__fopen(filename, "rb");
 	if (f == NULL) {
 		fprintf(stderr, "Could not open image file \"%s\".\n", filename);
@@ -60,17 +59,32 @@ bool RasterImage::load(char *filename) {
 	}
 	stbi__start_file(&ctx, f);
 
+	return loadStb(&ctx, filename);
+}
+
+bool RasterImage::loadBuffer(const void *_data, size_t length, const char *name) {
+	stbi__context ctx;
+
 	data = NULL;
 	delays = NULL;
 
-	if (stbi__gif_test(&ctx)) {
+	stbi__start_mem(&ctx, (const stbi_uc*) _data, length);
+
+	return loadStb(&ctx, name);
+}
+
+bool RasterImage::loadStb(void *_ctx, const char *filename) {
+	stbi__context *ctx = (stbi__context*) _ctx;
+	stbi__result_info res;
+	
+	if (stbi__gif_test(ctx)) {
 		// Load GIFs using the dedicated function - this allows loading animation data.
 		res.bits_per_channel = 8;
-		data = (unsigned char*) stbi__load_gif_main(&ctx, &delays, &width, &height, &frames, &components, 4);
+		data = (unsigned char*) stbi__load_gif_main(ctx, &delays, &width, &height, &frames, &components, 4);
 	} else {
 		frames = 1;
 		delays = NULL;
-		data = (unsigned char*) stbi__load_main(&ctx, &width, &height, &components, 4, &res, 8);
+		data = (unsigned char*) stbi__load_main(ctx, &width, &height, &components, 4, &res, 8);
 	}
 	// The "reqcomp" stbi parameter seems to convert, but still set the old value...
 	components = 4;
@@ -259,26 +273,31 @@ bool RasterImage::make_zero_transparent(void) {
 	return true;
 }
 
-RasterImage RasterImage::clone(bool flip_h, bool flip_v) const {
-	RasterImage result;
-	memcpy(&result, this, sizeof(RasterImage));
+RasterImage *RasterImage::clone(bool flip_h, bool flip_v) const {
+	RasterImage *result = new RasterImage;
+	memcpy(result, this, sizeof(RasterImage));
 
 	if (delays != NULL) {
-		result.delays = (int*) malloc(frames * sizeof(int));
-		memcpy(result.delays, delays, frames * sizeof(int));
+		result->delays = (int*) malloc(frames * sizeof(int));
+		memcpy(result->delays, delays, frames * sizeof(int));
 	}
 
-	result.data = (unsigned char*) malloc(frames * width * height * get_component_size());
-	for (int z = 0; z < frames; z++) {
-		for (int y = 0; y < height; y++) {
-			for (int x = 0; x < width; x++) {
-				int in_x = flip_h ? width - 1 - x : x;
-				int in_y = flip_v ? height - 1 - y : y;
-				result.set_data(z, x, y, get_data(z, in_x, in_y));
+	size_t data_size = frames * width * height * get_component_size();
+	result->data = (unsigned char*) malloc(data_size);
+	if (!flip_h && !flip_v) {
+		memcpy(result->data, this->data, data_size);
+	} else {
+		for (int z = 0; z < frames; z++) {
+			for (int y = 0; y < height; y++) {
+				for (int x = 0; x < width; x++) {
+					int in_x = flip_h ? width - 1 - x : x;
+					int in_y = flip_v ? height - 1 - y : y;
+					result->set_data(z, x, y, get_data(z, in_x, in_y));
+				}
 			}
 		}
 	}
-	result.is_subimage = false;
+	result->is_subimage = false;
 
 	return result;
 }

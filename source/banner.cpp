@@ -4,7 +4,9 @@
 #include "raster.h"
 #include "banner.h"
 #include "crc.h"
+#include "default_icon_png.h"
 #include "utf16.h"
+#include <cstddef>
 
 unsigned int GetBannerStartCRCSlot(unsigned short slot);
 void InsertBannerCRC(Banner &banner, unsigned int bannersize);
@@ -244,32 +246,49 @@ static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int in_de
  */
 void IconFromBMP()
 {
-	RasterImage bmp, bmp_anim;
-	if (bannerfilename == NULL && banneranimfilename == NULL)
+	RasterImage *bmp, *bmp_anim;
+	bmp = new RasterImage;
+
+	if (bannerfilename == NULL || banneranimfilename == NULL)
 	{
-		// TODO: default image
-		fprintf(stderr, "Error: No banner icon image provided!\n");
-		exit(1);
+		if (bannerfilename == NULL && banneranimfilename == NULL)
+		{
+			bannerfilename = "default_icon.png";
+			banneranimfilename = "default_icon.png";
+
+			if (!bmp->loadBuffer(default_icon_png, default_icon_png_size, bannerfilename)) exit(1);
+		}
+		else
+		{
+			if      (bannerfilename == NULL)     bannerfilename = banneranimfilename;
+			else if (banneranimfilename == NULL) banneranimfilename = bannerfilename;
+
+			if (!bmp->loadFile(bannerfilename)) exit(1);
+		}
+
+		if (!IconPrepareValidateBMP(*bmp, IsBmpExtensionFilename(bannerfilename))) exit(1);
+		bmp_anim = bmp;
 	}
+	else
+	{
+		bmp_anim = new RasterImage;
 
-	if      (bannerfilename == NULL)     bannerfilename = banneranimfilename;
-	else if (banneranimfilename == NULL) banneranimfilename = bannerfilename;
+		if (!bmp->loadFile(bannerfilename)) exit(1);
+		if (!bmp_anim->loadFile(banneranimfilename)) exit(1);
 
-	if (!bmp.load(bannerfilename)) exit(1);
-	if (!IconPrepareValidateBMP(bmp, IsBmpExtensionFilename(bannerfilename))) exit(1);
-
-	if (!bmp_anim.load(banneranimfilename)) exit(1);
-	if (!IconPrepareValidateBMP(bmp_anim, IsBmpExtensionFilename(banneranimfilename))) exit(1);
+		if (!IconPrepareValidateBMP(*bmp, IsBmpExtensionFilename(bannerfilename))) exit(1);
+		if (!IconPrepareValidateBMP(*bmp_anim, IsBmpExtensionFilename(banneranimfilename))) exit(1);
+	}
 
 	Banner banner;
 	memset(&banner, 0, sizeof(banner));
 	banner.version = 0x0001;
 	if (bannertext[6]) banner.version = 0x0002;
 	if (bannertext[7]) banner.version = 0x0003;
-	if (bmp_anim.frames > 1 || bmp != bmp_anim) banner.version = 0x0103;
+	if (bmp_anim->frames > 1 || bmp != bmp_anim) banner.version = 0x0103;
 	bannersize = CalcBannerSize(banner.version);
 
-	IconRasterToBanner(bmp, 0, banner.tile_data, banner.palette);
+	IconRasterToBanner(*bmp, 0, banner.tile_data, banner.palette);
 
 	if (banner.version >= 0x0103)
 	{
@@ -278,13 +297,13 @@ void IconFromBMP()
 		// TODO: This doesn't support packing tiles which can be expressed as two palettes of the same tile data,
 		// or two tile data instances under the same palette data. It supports up to eight unique frames only.
 
-		if (bmp_anim.frames <= 8)
+		if (bmp_anim->frames <= 8)
 		{
 			// fast path
-			for (int i = 0; i < bmp_anim.frames; i++)
+			for (int i = 0; i < bmp_anim->frames; i++)
 			{
-				IconRasterToBanner(bmp, i, banner.anim_tile_data[i], banner.anim_palette[i]);
-				banner.anim_sequence[i] = IconGetSequenceEntry(i, i, bmp.delays[i], false, false);
+				IconRasterToBanner(*bmp, i, banner.anim_tile_data[i], banner.anim_palette[i]);
+				banner.anim_sequence[i] = IconGetSequenceEntry(i, i, bmp_anim->delays[i], false, false);
 			}
 		}
 		else
@@ -292,11 +311,11 @@ void IconFromBMP()
 			// slow path
 			int frame_alloc_idx = 0;
 			RasterImage frame_alloc[8];
-			frame_alloc[frame_alloc_idx++] = bmp_anim.subimage(0);
-			IconRasterToBanner(bmp, 0, banner.anim_tile_data[0], banner.anim_palette[0]);
-			banner.anim_sequence[0] = IconGetSequenceEntry(0, 0, bmp.delays[0], false, false);
+			frame_alloc[frame_alloc_idx++] = bmp_anim->subimage(0);
+			IconRasterToBanner(*bmp, 0, banner.anim_tile_data[0], banner.anim_palette[0]);
+			banner.anim_sequence[0] = IconGetSequenceEntry(0, 0, bmp_anim->delays[0], false, false);
 
-			for (int i = 1; i < bmp_anim.frames; i++)
+			for (int i = 1; i < bmp_anim->frames; i++)
 			{
 				int fa_id = -1;
 				int fa_variant = 0;
@@ -304,12 +323,15 @@ void IconFromBMP()
 				{
 					for (int v = 0; v < 4; v++)
 					{
-						if (frame_alloc[j] == bmp_anim.subimage(i).clone((v & 1) != 0, (v & 2) != 0))
+						RasterImage *comp = bmp_anim->subimage(i).clone((v & 1) != 0, (v & 2) != 0);
+						if (frame_alloc[j] == *comp)
 						{
 							fa_id = j;
 							fa_variant = v;
+							delete comp;
 							break;
 						}
+						delete comp;
 					}
 					if (fa_id >= 0) break;
 				}
@@ -322,11 +344,11 @@ void IconFromBMP()
 					}
 					fa_id = frame_alloc_idx++;
 					fa_variant = 0;
-					frame_alloc[fa_id] = bmp_anim.subimage(i);
-					IconRasterToBanner(bmp, i, banner.anim_tile_data[fa_id], banner.anim_palette[fa_id]);
+					frame_alloc[fa_id] = bmp_anim->subimage(i);
+					IconRasterToBanner(*bmp, i, banner.anim_tile_data[fa_id], banner.anim_palette[fa_id]);
 				}
 
-				banner.anim_sequence[i] = IconGetSequenceEntry(i, fa_id, bmp.delays[i], (fa_variant & 1) != 0, (fa_variant & 2) != 0);
+				banner.anim_sequence[i] = IconGetSequenceEntry(i, fa_id, bmp_anim->delays[i], (fa_variant & 1) != 0, (fa_variant & 2) != 0);
 			}
 		}
 	}
