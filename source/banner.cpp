@@ -359,7 +359,7 @@ void IconFromBMP()
 			for (int i = 0; i < bmp_anim->frames; i++)
 			{
 				IconRasterToBanner(*bmp, i, banner.anim_tile_data[i], banner.anim_palette[i]);
-				banner.anim_sequence[i] = IconGetSequenceEntry(i, i, bmp_anim->delays[i], false, false);
+				banner.anim_sequence[i] = IconGetSequenceEntry(i, i, bmp_anim->delays != NULL ? bmp_anim->delays[i] : 0, false, false);
 			}
 		}
 		else
@@ -369,7 +369,7 @@ void IconFromBMP()
 			RasterImage frame_alloc[8];
 			frame_alloc[frame_alloc_idx++] = bmp_anim->subimage(0);
 			IconRasterToBanner(*bmp, 0, banner.anim_tile_data[0], banner.anim_palette[0]);
-			banner.anim_sequence[0] = IconGetSequenceEntry(0, 0, bmp_anim->delays[0], false, false);
+			banner.anim_sequence[0] = IconGetSequenceEntry(0, 0, bmp_anim->delays != NULL ? bmp_anim->delays[0] : 0, false, false);
 
 			for (int i = 1; i < bmp_anim->frames; i++)
 			{
@@ -404,7 +404,7 @@ void IconFromBMP()
 					IconRasterToBanner(*bmp, i, banner.anim_tile_data[fa_id], banner.anim_palette[fa_id]);
 				}
 
-				banner.anim_sequence[i] = IconGetSequenceEntry(i, fa_id, bmp_anim->delays[i], (fa_variant & 1) != 0, (fa_variant & 2) != 0);
+				banner.anim_sequence[i] = IconGetSequenceEntry(i, fa_id, bmp_anim->delays != NULL ? bmp_anim->delays[i] : 0, (fa_variant & 1) != 0, (fa_variant & 2) != 0);
 			}
 		}
 	}

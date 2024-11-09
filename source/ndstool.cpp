@@ -355,7 +355,6 @@ int main(int argc, char *argv[])
 			bannertype = BANNER_IMAGE;
 
 			bannerfilename = argv[a++];
-			banneranimfilename = bannerfilename;
 
 			if (argc > a && argv[a][0] != '-')
 				bannertext[1] = argv[a++];
