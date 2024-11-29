@@ -141,7 +141,7 @@ struct Header
 #pragma pack()
 
 #if __STDC_VERSION__ >= 201112L // C11 is required for static_assert
-static_assert(sizeof(Header) == 0x200);
+static_assert(sizeof(Header) == 0x1000);
 #endif
 
 struct Country

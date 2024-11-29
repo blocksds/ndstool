@@ -43,8 +43,10 @@ char *makercode = 0;
 char *gamecode = 0;
 char *vhdfilename = 0;
 char *sramfilename = 0;
-int latency1 = 0x1FFF; //0x8F8;
-int latency2 = 0x3F;   //0x18;
+int latency_1 = 0;
+int latency_2 = 24;
+int latency1_1 = 2296;
+int latency1_2 = 24;
 unsigned int romversion = 0;
 
 int bannertype = 0;
@@ -113,7 +115,8 @@ ArgInfo arguments[] =
 	{"bt",  2, "  Banner text\n-bt [langid] \"region;specific;text\""},
 	{"t",   1, "  Banner binary\n-t file.bin"},
 	{"h",   1, "  Header size/template\n-h size/file.bin\nIf a ROM file is provided, it uses that file as template for the header. If a size is provided, it sets the size of the header. A header size of 0x4000 is default for real cards and newer homebrew, 0x200 for older homebrew."},
-	{"n",   2, "  Latency\n-n [L1] [L2]\ndefault=maximum"},
+	{"n",   2, "  Latency\n-n [start gap] [per-block gap]\ndefault = 0 24"},
+	{"n1",  2, "  Latency 1\n-n1 [start gap] [per-block gap]\ndefault = 2296 24"},
 	{"o",   1, "  Logo image/binary\n-o file.[bmp|gif|png]/file.bin"},
 	{"m",   1, "  Maker code\n-m code\n The code must be 2 characters long"},
 	{"g",   1, "  Game info\n-g gamecode [makercode] [title] [rom ver]\nSets game-specific information.\nGame code is 4 characters. Maker code is 2 characters.\nTitle can be up to 12 characters."},
@@ -397,8 +400,13 @@ int main(int argc, char *argv[])
 		}
 		else if (strcmp(arg, "-n") == 0) // Latency
 		{
-			latency1 = strtoul(argv[a++], 0, 0);
-			latency2 = strtoul(argv[a++], 0, 0);
+			latency_1 = strtoul(argv[a++], 0, 0);
+			latency_2 = strtoul(argv[a++], 0, 0);
+		}
+		else if (strcmp(arg, "-n1") == 0) // Latency
+		{
+			latency1_1 = strtoul(argv[a++], 0, 0);
+			latency1_2 = strtoul(argv[a++], 0, 0);
 		}
 		else if (strcmp(arg, "-r7") == 0) // ARM7 RAM address
 		{

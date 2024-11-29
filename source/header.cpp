@@ -119,7 +119,8 @@ void FixHeaderCRC(char *ndsfilename)
 {
 	fNDS = fopen(ndsfilename, "r+b");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
-	fread(&header, 512, 1, fNDS);
+	unsigned int header_size = FullyReadHeader(fNDS, header);
+
 	header.logo_crc = CalcLogoCRC(header);
 	header.header_crc = CalcHeaderCRC(header);
 
@@ -133,7 +134,7 @@ void FixHeaderCRC(char *ndsfilename)
 	}
 
 	fseek(fNDS, 0, SEEK_SET);
-	fwrite(&header, header.rom_header_size, 1, fNDS);
+	fwrite(&header, header_size, 1, fNDS);
 	fclose(fNDS);
 }
 
@@ -201,8 +202,14 @@ void ShowHeaderInfo(Header &header, int romType, unsigned int length = 0x200)
 	printf("0x54\t%-25s\t0x%X\n", "ARM9 overlay size", (int)header.arm9_overlay_size);
 	printf("0x58\t%-25s\t0x%X\n", "ARM7 overlay offset", (int)header.arm7_overlay_offset);
 	printf("0x5C\t%-25s\t0x%X\n", "ARM7 overlay size", (int)header.arm7_overlay_size);
-	printf("0x60\t%-25s\t0x%08X\n", "ROM control info 1", (int)header.rom_control_info1);
-	printf("0x64\t%-25s\t0x%08X\n", "ROM control info 2", (int)header.rom_control_info2);
+	printf("0x60\t%-25s\t0x%08X (latency %d, %d)\n", "ROM control info 1",
+		(int)header.rom_control_info1,
+		(int)(header.rom_control_info1 & 0x1FFF),
+		(int)((header.rom_control_info1 >> 16) & 0x3F));
+	printf("0x64\t%-25s\t0x%08X (latency %d, %d)\n", "ROM control info 2",
+		(int)header.rom_control_info2,
+		(int)(header.rom_control_info2 & 0x1FFF),
+		(int)((header.rom_control_info2 >> 16) & 0x3F));
 	printf("0x68\t%-25s\t0x%X\n", "Icon/title offset", (int)header.banner_offset);
 	unsigned short secure_area_crc = CalcSecureAreaCRC();
 	const char *s1, *s2 = "";

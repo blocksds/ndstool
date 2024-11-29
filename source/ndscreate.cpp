@@ -363,8 +363,8 @@ void Create()
 		{
 			memcpy(header.title, "HOMEBREW", 8);
 		}
-		header.rom_control_info1 = 1<<22 | latency2<<16 | 1<<14 | 1<<13 | latency1;	// ROM control info 1
-		header.rom_control_info2 = 1<<29 | latency2<<16 | latency1;	// ROM control info 2
+		header.rom_control_info1 = 1<<22 | latency_2<<16 | 1<<14 | 1<<13 | latency_1;	// ROM control info 1
+		header.rom_control_info2 = latency1_2<<16 | latency1_1;	// ROM control info 2
 		header.rom_control_info3 = 0x051E;	// ROM control info 3
 	}
 	if (headersize) header.rom_header_size = headersize;
@@ -720,9 +720,6 @@ void Create()
 			ftruncate(fileno(fNDS), newfilesize);
 		}
 	}
-
-	header.rom_control_info1 = 0x00586000;
-	header.rom_control_info2 = 0x001808F8;
 
 	// Set flags in DSi extended header
 	if (header.unitcode & 2)
