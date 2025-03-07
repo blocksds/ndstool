@@ -156,7 +156,7 @@ int CopyFromElf(char *elfFilename,         unsigned int *entry,
 			continue;
 
 		/* Skip non-TWL/non-NTR sections. */
-		if(is_twl == !(p_headers[i].p_flags&0x100000))
+		if(is_twl == !(p_headers[i].p_flags&0x100000)) /* DSi flag from linkerscript */
 			continue;
 
 		/* Detect address of DSi exclusive ARM7 WRAM bank. */
