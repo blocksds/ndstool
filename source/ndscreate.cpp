@@ -688,16 +688,19 @@ void Create()
 
 		if (sections)
 		{
-			// This is a DSi application!
-			header.unitcode = 2;
-
-			// Flag as DSi exclusive if higher TID is not the default
-			if (titleidHigh != 0x00030000)
-				header.unitcode |= 1;
+			// This is a DSi-aware application. If the user has specified a unit
+			// code use it.
+			if (unitCode == -1)
+				header.unitcode = 2;
+			else
+				header.unitcode = unitCode;
 
 			// Flag as DSi exclusive if ARM9 is too big
 			if (header.arm9_size > 0x3BFE00)
+			{
 				header.unitcode |= 1;
+				fprintf(stderr, "ARM9 binary is too big for NDS. Marking ROM as DSi-only\n");
+			}
 
 			// Move ARM7 out of the way if it overlaps with ARM9
 			unsigned int arm9_end = header.arm9_ram_address+header.arm9_size;
@@ -806,7 +809,7 @@ void Create()
 	}
 
 	fseek(fNDS, 0, SEEK_SET);
-	fwrite(&header, (header.unitcode&2) ? 0x1000 : 0x200, 1, fNDS);
+	fwrite(&header, (header.unitcode & 2) ? 0x1000 : 0x200, 1, fNDS);
 
 	fclose(fNDS);
 }

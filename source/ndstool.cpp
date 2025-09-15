@@ -54,6 +54,7 @@ unsigned int arm9RamAddress = 0;
 unsigned int arm7RamAddress = 0;
 unsigned int arm9Entry = 0;
 unsigned int arm7Entry = 0;
+int unitCode = -1;
 unsigned int titleidHigh = 0x00030000; // DSi-enhanced gamecard. 0x00030004 (DSiWare) cannot be loaded as a card from DSi Menu
 unsigned int scfgExtMask = 0x80040407; // enable access to everything
 unsigned int accessControl = 0x00000138;
@@ -373,6 +374,17 @@ int main(int argc, char *argv[])
 		else if (strcmp(arg, "-u") == 0) // DSi title ID high word
 		{
 			titleidHigh = strtoul(argv[a++], 0, 16);
+		}
+		else if (strcmp(arg, "-uc") == 0) // DS unit code
+		{
+			// Valid unit codes are 0 (DS-only), 2 (DS and DSi supported) and 3
+			// (DSi-only).
+			unitCode = strtoul(argv[a++], 0, 10);
+			if ((unitCode == 1) || (unitCode > 3))
+			{
+				fprintf(stderr, "Invalid value for '-uc' (must be 0, 2 or 3): %u\n", unitCode);
+				return EXIT_FAILURE;
+			}
 		}
 		else if (strcmp(arg, "-z") == 0) // SCFG access flags
 		{
