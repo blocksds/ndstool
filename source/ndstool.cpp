@@ -55,7 +55,16 @@ unsigned int arm7RamAddress = 0;
 unsigned int arm9Entry = 0;
 unsigned int arm7Entry = 0;
 int unitCode = -1;
-unsigned int titleidHigh = 0x00030000; // DSi-enhanced gamecard. 0x00030004 (DSiWare) cannot be loaded as a card from DSi Menu
+
+// By default declare DSi-compatible games as DSiware. There is no way to create
+// a DSi cartridge that works on regular unmodified consoles because they would
+// need to be signed. However, some people install DSi ROMs in DSi NAND, where
+// the DSiware ID makes more sense. Homebrew loaders generally ignore this
+// value, but some of them require the DSiware ID to provide the device list to
+// the application when it boots.
+//unsigned int titleidHigh = 0x00030000; // DSi-enhanced gamecard
+unsigned int titleidHigh = 0x00030004; // DSiware
+
 unsigned int scfgExtMask = 0x80040407; // enable access to everything
 unsigned int accessControl = 0x00000138;
 unsigned int mbkArm7WramMapAddress = 0;
