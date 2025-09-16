@@ -554,9 +554,31 @@ void Create()
 		header.fat_offset = (header.fnt_offset + header.fnt_size + fat_align) &~ fat_align;
 		header.fat_size = file_count * 8;		// each entry contains top & bottom offset
 
+		size_t fat_end_offset = header.fat_offset + header.fat_size;
+
+		// The NitroFS library needs a magic value at a known location to verify that it can read
+		// data correctly using official DS card commands (this isn't required when reading from
+		// Slot-2 or from a file in FAT).
+		//
+		// A safe place for this value is right after the FAT table because any homebrew that uses
+		// NitroFS needs at least a valid FAT table.
+		if (file_count > 0)
+		{
+			fseek(fNDS, fat_end_offset, SEEK_SET);
+
+			const size_t nitrofs_magic_size = 8;
+			const uint8_t magic[nitrofs_magic_size] = {
+				'N', 'i', 't', 'r', 'o', 'F', 'S', '!'
+			};
+
+			fwrite(&magic, 1, nitrofs_magic_size, fNDS);
+
+			fat_end_offset += nitrofs_magic_size;
+		}
+
 		// banner after FNT/FAT
 		{
-			header.banner_offset = (header.fat_offset + header.fat_size + banner_align) &~ banner_align;
+			header.banner_offset = (fat_end_offset + banner_align) &~ banner_align;
 			fseek(fNDS, header.banner_offset, SEEK_SET);
 			if (bannertype == BANNER_IMAGE)
 			{
@@ -601,7 +623,7 @@ void Create()
 			if (header.banner_offset)
 				file_top = header.banner_offset + header.banner_size;
 			else
-				file_top = header.fat_offset + header.fat_size;
+				file_top = fat_end_offset;
 		}
 
 		file_end = file_top;	// no file data as yet
