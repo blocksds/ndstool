@@ -72,7 +72,7 @@ unsigned int appFlags = 0x01;
 
 void Title()
 {
-	printf("Nintendo DS rom tool (" VERSION_ID ")\nby Rafael Vuijk, Dave Murphy, Alexei Karpenko\n");
+	printf("Nintendo DS rom tool (" VERSION_STRING ")\nby Rafael Vuijk, Dave Murphy, Alexei Karpenko\n");
 }
 
 // Argument information

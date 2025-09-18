@@ -8,21 +8,28 @@
 SOURCEDIRS	:= source
 INCLUDEDIRS	:= source
 
+# Version string handling
+# -----------------------
+
 # Try to find the SDK version if it wasn't already provided e.g. by the parent Makefile
 SDK_VERSION	?= $(shell git describe --tags --exact-match --dirty 2>/dev/null)
 
-# Fallback to commit hash
-ifeq ($(SDK_VERSION),)
-    # --exclude to prevent any older tags from being displayed
-    VERSION_ID	:= "commit $(shell git describe --always --dirty --exclude '*' 2>/dev/null)"
+ifneq ($(SDK_VERSION),)
+    VERSION_STRING	:= "$(SDK_VERSION)"
 else
-    VERSION_ID	:= "BlocksDS $(SDK_VERSION)"
+    # Try to get the commit ID. --exclude to prevent any older tags from being displayed
+    COMMIT_ID	:= $(shell git describe --always --dirty --exclude '*' 2>/dev/null)
+    ifneq ($(COMMIT_ID),)
+        VERSION_STRING	:= "commit $(COMMIT_ID)"
+    else
+        VERSION_STRING	:= "DEV"
+    endif
 endif
 
 # Defines passed to all files
 # ---------------------------
 
-DEFINES		:= -DVERSION_ID=\"$(VERSION_ID)\"
+DEFINES		:= -DVERSION_STRING=\"$(VERSION_STRING)\"
 
 # Libraries
 # ---------
