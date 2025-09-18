@@ -75,6 +75,11 @@ void Title()
 	printf("Nintendo DS rom tool (" VERSION_STRING ")\nby Rafael Vuijk, Dave Murphy, Alexei Karpenko\n");
 }
 
+void PrintVersion(void)
+{
+    printf("ndstool " VERSION_STRING "\n");
+}
+
 // Argument information
 struct ArgInfo
 {
@@ -103,6 +108,7 @@ ArgInfo arguments[] =
 	{"",	0, "Parameter\nSyntax\nComments"},
 	{"",	0, "---------\n------\n--------"},
 	{"?",   0, "Show this help:\n-?\nPrint help message."},
+	{"V",   0, "Show version\n-V\nPrints the version string and exits"},
 	{"i",   0, "Show information:\n-i [file.nds]\nHeader information."},
 	{"fh",  0, "Fix header CRC\n-fh [file.nds]\nYou only need this after manual editing."},
 	{"fb",  0, "Fix banner CRC\n-fb [file.nds]\nYou only need this after manual editing."},
@@ -411,6 +417,11 @@ int main(int argc, char *argv[])
 		else if (strcmp(arg, "-q") == 0) // DSi ARM7 WRAM_A map address
 		{
 			mbkArm7WramMapAddress = strtoul(argv[a++], 0, 16);
+		}
+		else if (strcmp(arg, "-V") == 0) // Version string
+		{
+			PrintVersion();
+			return EXIT_SUCCESS;
 		}
 		else if (strcmp(arg, "-v") == 0) // Verbose
 		{
