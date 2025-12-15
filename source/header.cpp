@@ -121,6 +121,7 @@ void FixHeaderCRC(char *ndsfilename)
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
 	unsigned int header_size = FullyReadHeader(fNDS, header);
 
+	header.secure_area_crc = CalcSecureAreaCRC();
 	header.logo_crc = CalcLogoCRC(header);
 	header.header_crc = CalcHeaderCRC(header);
 
