@@ -146,7 +146,7 @@ void FixBannerCRC(char *ndsfilename, unsigned int banner_offset, unsigned int ba
 	fclose(fNDS);
 }
 
-static bool IconPrepareValidateBMP(RasterImage &bmp, bool force_zero_transparent)
+static bool IconPrepareValidateRasterImage(RasterImage &bmp, bool force_zero_transparent)
 {
 	if (bmp.width != 32 || bmp.height != 32)
 	{
@@ -282,7 +282,7 @@ static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int in_de
 	return delay | (frame_entry << 8) | (frame_entry << 11) | (flip_h ? (1 << 14) : 0) | (flip_v ? (1 << 15) : 0);
 }
 
-void IconToBMP()
+void IconToRasterImage()
 {
 	fNDS = fopen(ndsfilename, "rb");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
@@ -300,7 +300,7 @@ void IconToBMP()
 	bmp.saveFile(bannerfilename);
 }
 
-void IconFromBMP()
+void IconFromRasterImage()
 {
 	RasterImage *bmp, *bmp_anim;
 	bmp = new RasterImage;
@@ -322,7 +322,7 @@ void IconFromBMP()
 			if (!bmp->loadFile(bannerfilename)) exit(1);
 		}
 
-		if (!IconPrepareValidateBMP(*bmp, IsBmpExtensionFilename(bannerfilename))) exit(1);
+		if (!IconPrepareValidateRasterImage(*bmp, IsRasterImageExtensionFilename(bannerfilename))) exit(1);
 		bmp_anim = bmp;
 	}
 	else
@@ -332,8 +332,8 @@ void IconFromBMP()
 		if (!bmp->loadFile(bannerfilename)) exit(1);
 		if (!bmp_anim->loadFile(banneranimfilename)) exit(1);
 
-		if (!IconPrepareValidateBMP(*bmp, IsBmpExtensionFilename(bannerfilename))) exit(1);
-		if (!IconPrepareValidateBMP(*bmp_anim, IsBmpExtensionFilename(banneranimfilename))) exit(1);
+		if (!IconPrepareValidateRasterImage(*bmp, IsRasterImageExtensionFilename(bannerfilename))) exit(1);
+		if (!IconPrepareValidateRasterImage(*bmp_anim, IsRasterImageExtensionFilename(banneranimfilename))) exit(1);
 	}
 
 	Banner banner;

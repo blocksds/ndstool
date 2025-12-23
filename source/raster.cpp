@@ -21,12 +21,6 @@ bool IsRasterImageExtensionFilename(const char *filename) {
 	return p != NULL && (!strcasecmp(p, ".bmp") || !strcasecmp(p, ".gif") || !strcasecmp(p, ".png"));
 }
 
-bool IsBmpExtensionFilename(const char *filename) {
-	if (filename == NULL) return false;
-	const char *p = strrchr(filename, '.');
-	return p != NULL && !strcasecmp(p, ".bmp");
-}
-
 RasterImage::~RasterImage() {
 	if(data && !is_subimage) free(data);
 	if(delays && !is_subimage) free(delays);

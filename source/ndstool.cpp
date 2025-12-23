@@ -597,7 +597,7 @@ int main(int argc, char *argv[])
 					if (bannertype == BANNER_BINARY)
 						Extract(bannerfilename, true, 0x68, false, bannersize);
 					else if (bannertype == BANNER_IMAGE)
-						IconToBMP();
+						IconToRasterImage();
 				}
 				if (headerfilename_or_size) Extract(headerfilename_or_size, false, 0x0, false, headersize);
 				if (logofilename) Extract(logofilename, false, 0xC0, false, 156);	// *** bin only

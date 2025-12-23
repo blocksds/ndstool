@@ -605,7 +605,7 @@ void Create()
 							banneranimfilename = NULL;
 						}
 					}
-					IconFromBMP();
+					IconFromRasterImage();
 				}
 			}
 			else if (bannertype == BANNER_BINARY && bannerfilename)
