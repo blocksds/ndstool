@@ -80,7 +80,7 @@ Copy:
 	mov	pc, lr
 
 
-	.align
+	.balign 4
 	.arm
 
 NewARM9Loop:
