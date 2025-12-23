@@ -4,5 +4,5 @@
 
 #include <stdint.h>
 
-#define default_icon_png_size (325)
-extern const uint8_t default_icon_png[325];
+#define default_icon_png_size (357)
+extern const uint8_t default_icon_png[357];
