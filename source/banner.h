@@ -35,4 +35,3 @@ unsigned short GetBannerMinVersionForCRCSlot(unsigned short slot);
 unsigned short CalcBannerCRC(Banner &banner, unsigned short slot, unsigned int bannersize);
 void IconToRasterImage();
 void IconFromRasterImage();
-void IconFromGRF();

@@ -583,11 +583,7 @@ void Create()
 			if (bannertype == BANNER_IMAGE)
 			{
 				const char * Ext = bannerfilename == NULL ? NULL : strrchr(bannerfilename, '.');
-				if (Ext && strcasecmp(Ext, ".grf") == 0)
-				{
-					IconFromGRF();
-				}
-				else
+				if (Ext)
 				{
 					if (!IsRasterImageExtensionFilename(bannerfilename))
 					{
