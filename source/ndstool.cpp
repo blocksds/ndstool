@@ -48,6 +48,7 @@ int latency_2 = 24;
 int latency1_1 = 2296;
 int latency1_2 = 24;
 unsigned int romversion = 0;
+bool loadmeEnabled = true;
 
 int bannertype = 0;
 unsigned int arm9RamAddress = 0;
@@ -147,6 +148,7 @@ ArgInfo arguments[] =
 	{"a",   1, "  DSi access flags\n-a accessflags (32-bit hex)"},
 	{"p",   1, "  DSi application flags\n-p appflags (8-bit hex)"},
 	{"q",   1, "  DSi ARM7 WRAM_A map address\n-m address (32-bit hex)"},
+	{"nl",  0, "  Disable PassMe loader patch"},
 	{NULL,  0, NULL} // Marker of end of list
 };
 
@@ -486,6 +488,10 @@ int main(int argc, char *argv[])
 		else if (strcmp(arg, "-y") == 0) // Overlay table directory
 		{
 			overlaydir = argv[a++];
+		}
+		else if (strcmp(arg, "-nl") == 0) // Disable LoadMe patch
+		{
+			loadmeEnabled = false;
 		}
 		else if (strcmp(arg, "-?") == 0) // Global help
 		{

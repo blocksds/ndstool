@@ -8,15 +8,17 @@
 	.equ	NewARM9Loop_dest,	0x027FFFF0
 	.equ	RAM_HEADER,		0x027FFE00
 
-
-@ start offset is 0xC0
-
 	.arm
 	.global	_start
 _start:
-	adr	r6, _start - 0xC0			@ NDS header
+	ldr	r6, _offset
+	adr	r7, _start
+	sub	r6, r7, r6
 	adr	r7, ThumbCode+1
 	bx	r7
+
+_offset:
+	.long 0xC0
 
 	.thumb
 ThumbCode:
@@ -87,7 +89,5 @@ NewARM9Loop:
 	ldr		pc, . + 4
 
 	.pool
-
-	.space (_start + 156) - .
 
 	.end

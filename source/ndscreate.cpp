@@ -331,7 +331,13 @@ void Create()
 	char *headerfilename = (headerfilename_or_size && (strtoul(headerfilename_or_size,0,0) == 0)) ? headerfilename_or_size : 0;
 	u32 headersize = headerfilename_or_size ? strtoul(headerfilename_or_size,0,0) : (is_both_elf ? 0x4000 : 0x200);
 
-	// initial header data
+	// The LoadMe stub is used in two cases:
+	//
+	// - for loading .nds images placed in the GBA slot address space via PassMe,
+	// - for loading .nds images in ancient homebrew loaders, such as MoonShell 2.
+	loadmeEnabled &= !title;
+
+	// Write initial header data
 	if (headerfilename)
 	{
 		// header template
@@ -345,32 +351,39 @@ void Create()
 			bSecureSyscalls = true;
 		}
 	}
-	else	// set header default values
+	else
 	{
-		// clear header
+		// Clear header
 		memset(&header, 0, sizeof(header));
+
+		// Set header default values
 		memcpy(header.gamecode, "####", 4);
 
 		if (arm9RamAddress + 0x800 == arm9Entry)
 		{
 			bSecureSyscalls = true;
 		}
-		else if (headersize == 0x200)
-		{
-			header.reserved2 = 0x04;		// autostart
-			*(unsigned_int *)(((unsigned char *)&header) + 0x0) = 0xEA00002E;		// for PassMe's that start @ 0x08000000
-		} else if (!title)
+		
+		if (!loadmeEnabled && !title)
 		{
 			memcpy(header.title, "HOMEBREW", 8);
 		}
+
 		header.rom_control_info1 = 1<<22 | latency_2<<16 | 1<<14 | 1<<13 | latency_1;	// ROM control info 1
 		header.rom_control_info2 = latency1_2<<16 | latency1_1;	// ROM control info 2
 		header.rom_control_info3 = 0x051E;	// ROM control info 3
 	}
+
 	if (headersize) header.rom_header_size = headersize;
 	if (header.rom_header_size == 0) header.rom_header_size = bSecureSyscalls ? 0x4000 : 0x200;
 
-	// load a logo
+	// For NDS-only images, enable autostart flag
+	if (!bSecureSyscalls)
+	{
+		header.reserved2 = 0x04;
+	}
+
+	// Write logo data
 	if (logofilename)
 	{
 		if (IsRasterImageExtensionFilename(logofilename))
@@ -387,19 +400,47 @@ void Create()
 			fclose(fi);
 		}
 	}
-	else if (header.rom_header_size > 0x200)	// use Nintendo logo
+	else
 	{
-		memcpy(((unsigned char *)&header) + 0xC0, nintendo_logo, sizeof(nintendo_logo));
-	}
-	else	// add small NDS loader
-	{
-		if (loadme_size != 156) { fprintf(stderr, "loadme size error\n"); exit(1); }
-		memcpy(header.logo, loadme, loadme_size);		// self-contained NDS loader for *Me GBA cartridge boot
-		memcpy(&header.offset_0xA0, "SRAM_V110", 9);		// allow GBA cartridge SRAM backup
-		memcpy(&header.offset_0xAC, "PASS01\x96", 7);		// automatically start with FlashMe, make it look more like a GBA rom
+		memcpy(((unsigned char *)&header.logo), nintendo_logo, sizeof(nintendo_logo));
 	}
 
-	// override default title/game/maker codes. They don't need to be NUL-terminated.
+	// Write LoadMe stub, if enabled
+	if (loadmeEnabled)
+	{
+		// - For DSi hybrid images, store the LoadMe stub in the debug parameters area. This area is not
+		//   validated, and the only situations in which it is used are ones where the LoadMe stub is not
+		//   necessary.
+		// - For NDS only images, store the LoadMe stub in the logo header area.
+
+		u32 loadmeStubLocation = header.rom_header_size >= 0x1000 ? 0xE00 : 0xC0;
+		int loadmeStubMaxSize = header.rom_header_size >= 0x1000 ? 0x180 : 0x9C;
+		u32 loadmeStubLocationOffset = 0x14;
+
+		if (loadme_size > loadmeStubMaxSize)
+		{
+			fprintf(stderr, "loadme size error: %d > %d @ %08X\n", loadme_size, loadmeStubMaxSize, loadmeStubLocation);
+			exit(1);
+		}
+		if (*(unsigned_int *)(loadme + loadmeStubLocationOffset) != 0xC0)
+		{
+			fprintf(stderr, "loadme stub location error\n");
+			exit(1);
+		}
+
+		memset(((unsigned char *) &header) + loadmeStubLocation, 0, loadmeStubMaxSize);
+		memcpy(((unsigned char *) &header) + loadmeStubLocation, loadme, loadme_size);		// self-contained NDS loader for *Me GBA cartridge boot
+		memcpy(&header.offset_0xA0, "SRAM_V110", 9);		// allow GBA cartridge SRAM backup
+		memcpy(&header.offset_0xAC, "PASS01\x96", 7);		// automatically start with FlashMe, make it look more like a GBA romif (loadmeStubLocation)
+
+		// Write stub offset to fixed area in stub code
+		*(unsigned_int *)(((unsigned char *)&header) + loadmeStubLocation + loadmeStubLocationOffset) = loadmeStubLocation;
+
+		// Emit branch opcode at the beginning of header (0x8000000 for PassMe)
+		*(unsigned_int *)((unsigned char *)&header.title) = 0xEA000000 | (((loadmeStubLocation - 8) >> 2) & 0xFFFFFF);
+	}
+
+	// Override default title/game/maker codes. They don't need to be NUL-terminated.
 	if (title) strncpy(header.title, title, sizeof(header.title));
 	if (gamecode) strncpy(header.gamecode, gamecode, sizeof(header.gamecode));
 	if (makercode) strncpy((char *)header.makercode, makercode, sizeof(header.makercode));
