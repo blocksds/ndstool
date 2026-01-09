@@ -378,7 +378,7 @@ void Create()
 	if (header.rom_header_size == 0) header.rom_header_size = bSecureSyscalls ? 0x4000 : 0x200;
 
 	// For NDS-only images, enable autostart flag
-	if (!bSecureSyscalls)
+	if (header.rom_header_size < 0x1000)
 	{
 		header.reserved2 = 0x04;
 	}
