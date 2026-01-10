@@ -77,3 +77,4 @@ extern int latency_2;
 extern int latency1_1;
 extern int latency1_2;
 extern unsigned int romversion;
+extern bool loadmeEnabled;
