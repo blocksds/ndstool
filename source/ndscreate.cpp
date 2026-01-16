@@ -430,14 +430,19 @@ void Create()
 
 		memset(((unsigned char *) &header) + loadmeStubLocation, 0, loadmeStubMaxSize);
 		memcpy(((unsigned char *) &header) + loadmeStubLocation, loadme, loadme_size);		// self-contained NDS loader for *Me GBA cartridge boot
-		memcpy(&header.offset_0xA0, "SRAM_V110", 9);		// allow GBA cartridge SRAM backup
-		memcpy(&header.offset_0xAC, "PASS01\x96", 7);		// automatically start with FlashMe, make it look more like a GBA romif (loadmeStubLocation)
 
 		// Write stub offset to fixed area in stub code
 		*(unsigned_int *)(((unsigned char *)&header) + loadmeStubLocation + loadmeStubLocationOffset) = loadmeStubLocation;
 
 		// Emit branch opcode at the beginning of header (0x8000000 for PassMe)
 		*(unsigned_int *)((unsigned char *)&header.title) = 0xEA000000 | (((loadmeStubLocation - 8) >> 2) & 0xFFFFFF);
+
+		// Warning: NO$GBA expects the LoadMe stub to be at 0xC0 if the GBA headers are present
+		if (loadmeStubLocation == 0xC0)
+		{
+			memcpy(&header.offset_0xA0, "SRAM_V110", 9);		// allow GBA cartridge SRAM backup
+			memcpy(&header.offset_0xAC, "PASS01\x96", 7);		// automatically start with FlashMe, make it look more like a GBA rom
+		}
 	}
 
 	// Override default title/game/maker codes. They don't need to be NUL-terminated.
