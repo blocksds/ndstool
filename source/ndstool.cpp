@@ -48,7 +48,7 @@ int latency_2 = 24;
 int latency1_1 = 2296;
 int latency1_2 = 24;
 unsigned int romversion = 0;
-bool loadmeEnabled = true;
+bool loadmeEnabled = false;
 
 int bannertype = 0;
 unsigned int arm9RamAddress = 0;
@@ -147,8 +147,9 @@ ArgInfo arguments[] =
 	{"z",   1, "  ARM7 SCFG EXT mask\n-z scfgmask (32-bit hex)"},
 	{"a",   1, "  DSi access flags\n-a accessflags (32-bit hex)"},
 	{"p",   1, "  DSi application flags\n-p appflags (8-bit hex)"},
-	{"q",   1, "  DSi ARM7 WRAM_A map address\n-m address (32-bit hex)"},
-	{"nl",  0, "  Disable PassMe loader patch"},
+	{"q",      1, "  DSi ARM7 WRAM_A map address\n -m address (32-bit hex)"},
+	{"nopass", 0, "  Disable PassMe loader patch\n -nopass  This is the default setting"},
+	{"pass",   0, "  Enable PassMe loader patch\n  -pass    May break compatibility with some loaders"},
 	{NULL,  0, NULL} // Marker of end of list
 };
 
@@ -489,9 +490,13 @@ int main(int argc, char *argv[])
 		{
 			overlaydir = argv[a++];
 		}
-		else if (strcmp(arg, "-nl") == 0) // Disable LoadMe patch
+		else if (strcmp(arg, "-nopass") == 0) // Disable LoadMe patch
 		{
-			loadmeEnabled = false;
+			loadmeEnabled = false; // This is the default setting
+		}
+		else if (strcmp(arg, "-pass") == 0) // Enable LoadMe patch
+		{
+			loadmeEnabled = true;
 		}
 		else if (strcmp(arg, "-?") == 0) // Global help
 		{
