@@ -5,6 +5,7 @@
 #include "sha1.h"
 #include "crc.h"
 #include "bigint.h"
+#include "ndscreate.h"
 #include "utf16.h"
 
 /*
@@ -127,6 +128,13 @@ void FixHeaderCRC(char *ndsfilename)
 
 	if (header.unitcode & 2)
 	{
+		Sha1Hmac(header.hmac_arm9, fNDS, header.arm9_rom_offset, header.arm9_size);
+		Sha1Hmac(header.hmac_arm7, fNDS, header.arm7_rom_offset, header.arm7_size);
+		Sha1Hmac(header.hmac_icon_title, fNDS, header.banner_offset, header.banner_size);
+		Sha1Hmac(header.hmac_arm9i, fNDS, header.dsi9_rom_offset, header.dsi9_size);
+		Sha1Hmac(header.hmac_arm7i, fNDS, header.dsi7_rom_offset, header.dsi7_size);
+		memset(header.rsa_signature, 0xFF, 0x80);
+
 		// Dummy signature for no$gba
 		header.rsa_signature[0x00] = 0;
 		header.rsa_signature[0x01] = 1;
