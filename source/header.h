@@ -166,7 +166,7 @@ unsigned int FullyReadHeader(FILE *fNDS, Header &header);
 unsigned int GetBannerSizeFromHeader(Header &header, unsigned short banner_version);
 unsigned short CalcHeaderCRC(Header &header);
 unsigned short CalcLogoCRC(Header &header);
-void FixHeaderCRC(char *ndsfilename);
+void FixHeaderChecksums(char *ndsfilename);
 void ShowInfo(char *ndsfilename);
 int HashAndCompareWithList(char *filename, unsigned char sha1[]);
 int DetectRomType();

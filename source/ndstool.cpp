@@ -111,7 +111,7 @@ ArgInfo arguments[] =
 	{"?",   0, "Show this help:\n-?\nPrint help message."},
 	{"V",   0, "Show version\n-V\nPrints the version string and exits"},
 	{"i",   0, "Show information:\n-i [file.nds]\nHeader information."},
-	{"fh",  0, "Fix header CRC\n-fh [file.nds]\nYou only need this after manual editing."},
+	{"fh",  0, "Fix header checksums\n-fh [file.nds]\nYou only need this after manual editing."},
 	{"fb",  0, "Fix banner CRC\n-fb [file.nds]\nYou only need this after manual editing."},
 	{"l",   0, "List files:\n-l [file.nds]\nGive a list of contained files."},
 	{"c",   0, "Create\n-c [file.nds]"},
@@ -190,7 +190,7 @@ void Help(void)
 
 enum {
 	ACTION_SHOWINFO,
-	ACTION_FIXHEADERCRC,
+	ACTION_FIXHEADERCHECKSUMS,
 	ACTION_FIXBANNERCRC,
 	ACTION_LISTFILES,
 	ACTION_EXTRACT,
@@ -251,9 +251,9 @@ int main(int argc, char *argv[])
 			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
-		else if (strcmp(arg, "-fh") == 0) // Fix header CRC
+		else if (strcmp(arg, "-fh") == 0) // Fix header checksums
 		{
-			ADDACTION(ACTION_FIXHEADERCRC);
+			ADDACTION(ACTION_FIXHEADERCHECKSUMS);
 			if (argc > a && argv[a][0] != '-')
 				ndsfilename = argv[a++];
 		}
@@ -570,8 +570,8 @@ int main(int argc, char *argv[])
 				ShowInfo(ndsfilename);
 				break;
 
-			case ACTION_FIXHEADERCRC:
-				FixHeaderCRC(ndsfilename);
+			case ACTION_FIXHEADERCHECKSUMS:
+				FixHeaderChecksums(ndsfilename);
 				break;
 
 			case ACTION_FIXBANNERCRC:

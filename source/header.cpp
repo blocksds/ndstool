@@ -114,9 +114,9 @@ unsigned short CalcSegment3CRC()
 }
 
 /*
- * FixHeaderCRC
+ * FixHeaderChecksums
  */
-void FixHeaderCRC(char *ndsfilename)
+void FixHeaderChecksums(char *ndsfilename)
 {
 	fNDS = fopen(ndsfilename, "r+b");
 	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
