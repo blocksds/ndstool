@@ -353,8 +353,8 @@ void Create()
 	}
 	else
 	{
-		// Clear header
-		memset(&header, 0, sizeof(header));
+		// Reset all header fields to 0
+		header = {};
 
 		// Set header default values
 		memcpy(header.gamecode, "####", 4);
@@ -440,8 +440,11 @@ void Create()
 		// Warning: NO$GBA expects the LoadMe stub to be at 0xC0 if the GBA headers are present
 		if (loadmeStubLocation == 0xC0)
 		{
-			memcpy(&header.offset_0xA0, "SRAM_V110", 9);		// allow GBA cartridge SRAM backup
-			memcpy(&header.offset_0xAC, "PASS01\x96", 7);		// automatically start with FlashMe, make it look more like a GBA rom
+			// Allow GBA cartridge SRAM backup
+			memcpy((void *)&header.offset_0xA0, "SRAM_V110", 9);
+
+			// Automatically start with FlashMe, make it look more like a GBA rom
+			memcpy((void *)&header.offset_0xAC, "PASS01\x96", 7);
 		}
 	}
 

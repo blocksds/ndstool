@@ -134,8 +134,8 @@ void FixBannerCRC(char *ndsfilename, unsigned int banner_offset, unsigned int ba
 	// banner info
 	if (banner_offset)
 	{
-		Banner banner;
-		memset(&banner, 0, sizeof(banner));
+		Banner banner = {};
+
 		fseek(fNDS, banner_offset, SEEK_SET);
 		if (fread(&banner, 1, bannersize, fNDS)) {
 			InsertBannerCRC(banner, bannersize);
@@ -336,8 +336,8 @@ void IconFromRasterImage()
 		if (!IconPrepareValidateRasterImage(*bmp_anim, IsRasterImageExtensionFilename(banneranimfilename))) exit(1);
 	}
 
-	Banner banner;
-	memset(&banner, 0, sizeof(banner));
+	Banner banner = {};
+
 	banner.version = 0x0001;
 	if (bannertext[6]) banner.version = 0x0002;
 	if (bannertext[7]) banner.version = 0x0003;

@@ -83,7 +83,7 @@ SOURCES_CPP	:= $(shell find -L $(SOURCEDIRS) -name "*.cpp")
 
 WARNFLAGS_C	:= -Wall -Wextra -Wpedantic -Wstrict-prototypes
 
-WARNFLAGS_CXX	:= -Wall -Wextra -Wno-unused-result -Wno-class-memaccess
+WARNFLAGS_CXX	:= -Wall -Wextra -Wno-unused-result
 
 ifeq ($(SOURCES_CPP),)
     HOSTLD	:= $(HOSTCC)

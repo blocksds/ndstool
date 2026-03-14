@@ -315,9 +315,21 @@ bool RasterImage::make_zero_transparent(void) {
 
 RasterImage *RasterImage::clone(bool flip_h, bool flip_v) const {
 	RasterImage *result = new RasterImage;
-	memcpy(result, this, sizeof(RasterImage));
 
-	if (delays != NULL) {
+	result->width = width;
+	result->height = height;
+	result->frames = frames;
+	result->components = components;
+
+	memcpy(&result->palette_count, &palette_count, sizeof(palette_count));
+	memcpy(&result->palette, &palette, sizeof(palette));
+
+	result->has_palette = has_palette;
+	result->is_subimage = is_subimage;
+
+	if (delays == NULL) {
+		result->delays = NULL;
+	} else {
 		result->delays = (int*) malloc(frames * sizeof(int));
 		memcpy(result->delays, delays, frames * sizeof(int));
 	}
