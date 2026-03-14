@@ -446,9 +446,27 @@ void Create()
 	}
 
 	// Override default title/game/maker codes. They don't need to be NUL-terminated.
-	if (title) strncpy(header.title, title, sizeof(header.title));
-	if (gamecode) strncpy(header.gamecode, gamecode, sizeof(header.gamecode));
-	if (makercode) strncpy((char *)header.makercode, makercode, sizeof(header.makercode));
+	if (title)
+	{
+		size_t len = strlen(title);
+		if (len > sizeof(header.title))
+			len = sizeof(header.title);
+		memcpy(header.title, title, len);
+	}
+	if (gamecode)
+	{
+		size_t len = strlen(gamecode);
+		if (len > sizeof(header.gamecode))
+			len = sizeof(header.gamecode);
+		memcpy(header.gamecode, gamecode, len);
+	}
+	if (makercode)
+	{
+		size_t len = strlen(makercode);
+		if (len > sizeof(header.makercode))
+			len = sizeof(header.makercode);
+		memcpy(header.makercode, makercode, len);
+	}
 	header.romversion = (romversion & 0xff);
 
 	// --------------------------
