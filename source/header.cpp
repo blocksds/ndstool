@@ -5,6 +5,7 @@
 #include "sha1.h"
 #include "crc.h"
 #include "bigint.h"
+#include "log.h"
 #include "ndscreate.h"
 #include "utf16.h"
 
@@ -64,15 +65,25 @@ unsigned short CalcLogoCRC(Header &header)
  */
 int DetectRomType()
 {
-	fseek(fNDS, 0x4000, SEEK_SET);
+	if (fseek(fNDS, 0x4000, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek header offset (1)\n", __func__);
+
 	unsigned int data[3];
-	fread(data, 1, sizeof(data), fNDS);
+	if (fread(data, 1, sizeof(data), fNDS) != sizeof(data))
+		LogFatal("%s: Failed to read ROM type\n", __func__);
+
 	if (header.arm9_rom_offset < 0x4000) return ROMTYPE_HOMEBREW;
 	if (data[0] == 0x00000000 && data[1] == 0x00000000) return ROMTYPE_MULTIBOOT;
 	if (data[0] == 0xE7FFDEFF && data[1] == 0xE7FFDEFF) return ROMTYPE_NDSDUMPED;
-	fseek(fNDS, 0x200, SEEK_SET);
+
+	if (fseek(fNDS, 0x200, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek header offset (2)\n", __func__);
+
 	for (int i=0x200; i<0x4000; i++)
-		if (fgetc(fNDS)) return ROMTYPE_MASKROM;	// found something odd ;)
+	{
+		if (fgetc(fNDS))
+			return ROMTYPE_MASKROM;	// found something odd ;)
+	}
 	return ROMTYPE_ENCRSECURE;
 }
 
@@ -81,9 +92,13 @@ int DetectRomType()
  */
 unsigned short CalcSecureAreaCRC()
 {
-	fseek(fNDS, 0x4000, SEEK_SET);
+	if (fseek(fNDS, 0x4000, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek secure area\n", __func__);
+
 	unsigned char data[0x4000];
-	fread(data, 1, 0x4000, fNDS);
+	if (fread(data, 1, 0x4000, fNDS) != 0x4000)
+		LogFatal("%s: Failed to read data\n", __func__);
+
 	return CalcCrc16(data, 0x4000);
 }
 
@@ -92,9 +107,13 @@ unsigned short CalcSecureAreaCRC()
  */
 unsigned short CalcSecurityDataCRC()
 {
-	fseek(fNDS, 0x1000, SEEK_SET);
+	if (fseek(fNDS, 0x1000, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek security data\n", __func__);
+
 	unsigned char data[0x2000];
-	fread(data, 1, 0x2000, fNDS);
+	if (fread(data, 1, 0x2000, fNDS) != 0x2000)
+		LogFatal("%s: Failed to read data\n", __func__);
+
 	return CalcCrc16(data, 0x2000);
 }
 
@@ -103,9 +122,13 @@ unsigned short CalcSecurityDataCRC()
  */
 unsigned short CalcSegment3CRC()
 {
-	fseek(fNDS, 0x3000, SEEK_SET);
+	if (fseek(fNDS, 0x3000, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek segment 3\n", __func__);
+
 	unsigned char data[0x1000];
-	fread(data, 1, 0x1000, fNDS);
+	if (fread(data, 1, 0x1000, fNDS) != 0x1000)
+		LogFatal("%s: Failed to read data\n", __func__);
+
 	for (int i=0; i<0x1000; i+=2)	// swap bytes
 	{
 		unsigned char t = data[i+1]; data[i+1] = data[i]; data[i] = t;
@@ -119,7 +142,9 @@ unsigned short CalcSegment3CRC()
 void FixHeaderChecksums(char *ndsfilename)
 {
 	fNDS = fopen(ndsfilename, "r+b");
-	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+	if (!fNDS)
+		LogFatal("Cannot open file '%s'.\n", ndsfilename);
+
 	unsigned int header_size = FullyReadHeader(fNDS, header);
 
 	header.secure_area_crc = CalcSecureAreaCRC();
@@ -142,8 +167,12 @@ void FixHeaderChecksums(char *ndsfilename)
 		sha1(&header.rsa_signature[0x6C], (const unsigned char*)&header, 0xE00);
 	}
 
-	fseek(fNDS, 0, SEEK_SET);
-	fwrite(&header, header_size, 1, fNDS);
+	if (fseek(fNDS, 0, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ROM start\n", __func__);
+
+	if (fwrite(&header, header_size, 1, fNDS) != 1)
+		LogFatal("%s: Failed to write header\n", __func__);
+
 	fclose(fNDS);
 }
 
@@ -313,8 +342,12 @@ void HeaderSha1(FILE *fNDS, unsigned char *header_sha1, int romType)
 	sha1_ctx m_sha1;
 	sha1_begin(&m_sha1);
 	unsigned char buf[32 + 0x200];
-	fseek(fNDS, 0x200, SEEK_SET);		// check for 32 bytes text + alternate header
-	fread(buf, 1, sizeof(buf), fNDS);
+	if (fseek(fNDS, 0x200, SEEK_SET) == -1) // check for 32 bytes text + alternate header
+		LogFatal("%s: Failed to seek header\n", __func__);
+
+	if (fread(buf, 1, sizeof(buf), fNDS) != sizeof(buf))
+		LogFatal("%s: Failed to read header data (1)\n", __func__);
+
 	if (!memcmp(buf, "DS DOWNLOAD PLAY", 16))	// found?
 	{
 		sha1_hash(buf + 0x20, 0x160, &m_sha1);	// alternate header
@@ -327,8 +360,12 @@ void HeaderSha1(FILE *fNDS, unsigned char *header_sha1, int romType)
 	}
 	else
 	{
-		fseek(fNDS, 0, SEEK_SET);
-		fread(buf, 1, sizeof(buf), fNDS);
+		if (fseek(fNDS, 0, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek ROM start\n", __func__);
+
+		if (fread(buf, 1, sizeof(buf), fNDS) != sizeof(buf))
+			LogFatal("%s: Failed to read header data (2)\n", __func__);
+
 		sha1_hash(buf, 0x160, &m_sha1);
 	}
 	sha1_end(header_sha1, &m_sha1);
@@ -341,10 +378,14 @@ void Arm9Sha1Multiboot(FILE *fNDS, unsigned char *arm9_sha1)
 {
 	sha1_ctx m_sha1;
 	sha1_begin(&m_sha1);
-	fseek(fNDS, header.arm9_rom_offset, SEEK_SET);
+	if (fseek(fNDS, header.arm9_rom_offset, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ARM9 ROM offset\n", __func__);
+
 	unsigned int len = header.arm9_size;
 	unsigned char *buf = new unsigned char [len];
-	fread(buf, 1, len, fNDS);
+	if (fread(buf, 1, len, fNDS) != len)
+		LogFatal("%s: Failed to read ARM9 data\n", __func__);
+
 	//printf("%u\n", len);
 	sha1_hash(buf, len, &m_sha1);
 	delete [] buf;
@@ -358,16 +399,33 @@ void Arm9Sha1ClearedOutArea(FILE *fNDS, unsigned char *arm9_sha1)
 {
 	sha1_ctx m_sha1;
 	sha1_begin(&m_sha1);
-	fseek(fNDS, header.arm9_rom_offset, SEEK_SET);
+	if (fseek(fNDS, header.arm9_rom_offset, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ARM9 ROM offset\n", __func__);
+
 	unsigned int len = header.arm9_size;
 	unsigned char *buf = new unsigned char [len];
 
 	int len1 = (0x5000 - header.arm9_rom_offset);		// e.g. 0x5000 - 0x4000 = 0x1000
 	int len3 = header.arm9_size - (0x7000 - header.arm9_rom_offset);	// e.g. 0x10000 - (0x7000 - 0x4000) = 0xD000
 	int len2 = header.arm9_size - len1 - len3;			// e.g. 0x10000 - 0x1000 - 0xD000 = 0x2000
-	if (len1 > 0) fread(buf, 1, len1, fNDS);
-	if (len2 > 0) { memset(buf + len1, 0, len2); fseek(fNDS, len2, SEEK_CUR); }		// gets cleared for security?
-	if (len3 > 0) fread(buf + len1 + len2, 1, len3, fNDS);
+
+	if (len1 > 0)
+	{
+		if (fread(buf, 1, len1, fNDS) != (size_t)len1)
+			LogFatal("%s: Failed to read area 1\n", __func__);
+	}
+	if (len2 > 0)
+	{
+		// gets cleared for security?
+		memset(buf + len1, 0, len2);
+		if (fseek(fNDS, len2, SEEK_CUR) == -1)
+			LogFatal("%s: Failed to seek len2 offset\n", __func__);
+	}
+	if (len3 > 0)
+	{
+		if (fread(buf + len1 + len2, 1, len3, fNDS) != (size_t)len3)
+			LogFatal("%s: Failed to read area 3\n", __func__);
+	}
 //	printf("%X %X %X\n", len1, len2, len3);
 
 //		memset(buf, 0, 0x800);		// clear "secure area" too
@@ -384,10 +442,14 @@ void Arm7Sha1(FILE *fNDS, unsigned char *arm7_sha1)
 {
 	sha1_ctx m_sha1;
 	sha1_begin(&m_sha1);
-	fseek(fNDS, header.arm7_rom_offset, SEEK_SET);
+	if (fseek(fNDS, header.arm7_rom_offset, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ARM7 ROM offset\n", __func__);
+
 	unsigned int len = header.arm7_size;
 	unsigned char *buf = new unsigned char [len];
-	fread(buf, 1, len, fNDS);
+	if (fread(buf, 1, len, fNDS) != len)
+		LogFatal("%s: Failed to read ARM7 data\n", __func__);
+
 	//printf("%u\n", len);
 	sha1_hash(buf, len, &m_sha1);
 	delete [] buf;
@@ -447,23 +509,33 @@ void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
 
 	// find signature data
 	unsigned_int signature_id = 0;
-	fseek(fNDS, header.application_end_offset, SEEK_SET);
-	fread(&signature_id, sizeof(signature_id), 1, fNDS);
-	if (signature_id != 0x00016361)
+	if (fseek(fNDS, header.application_end_offset, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek signature ID (first try)\n", __func__);
+
+	if (fread(&signature_id, sizeof(signature_id), 1, fNDS) != 1)
+		LogFatal("%s: Failed to read signature ID (first try)\n", __func__);
+
+	if (signature_id != 0x00016361) // try again
 	{
-		fseek(fNDS, header.application_end_offset - 136, SEEK_SET);		// try again
-		fread(&signature_id, sizeof(signature_id), 1, fNDS);
+		if (fseek(fNDS, header.application_end_offset - 136, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek signature ID (second try)\n", __func__);
+
+		if (fread(&signature_id, sizeof(signature_id), 1, fNDS) != sizeof(signature_id))
+			LogFatal("%s: Failed to read signature ID (second try)\n", __func__);
 	}
+
 	if (signature_id == 0x00016361)
 	{
 		printf("\n");
 
 		unsigned char signature[128];
-		fread(signature, 1, sizeof(signature), fNDS);
+		if (fread(signature, 1, sizeof(signature), fNDS) != sizeof(signature))
+			LogFatal("%s: Failed to read signature\n", __func__);
 
 		unsigned char sha_parts[3*SHA1_DIGEST_SIZE + 4];
-		fread(sha_parts + 3*SHA1_DIGEST_SIZE, 4, 1, fNDS);		// some number
-		
+		if (fread(sha_parts + 3*SHA1_DIGEST_SIZE, 4, 1, fNDS) != 1) // some number
+			LogFatal("%s: Failed to read SHA parts\n", __func__);
+
 		//printf("%08X\n", *(unsigned int *)(sha_parts + 3*SHA1_DIGEST_SIZE));
 
 		unsigned char header_sha1[SHA1_DIGEST_SIZE];
@@ -525,7 +597,9 @@ void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
 	// CRC32
 	{
 		unsigned char *buf = new unsigned char [0x10000];
-		fseek(fNDS, 0, SEEK_SET);
+		if (fseek(fNDS, 0, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek ROM start\n", __func__);
+
 		unsigned long crc32 = ~0;
 		int r;
 		while ((r = fread(buf, 1, 0x10000, fNDS)) > 0)
@@ -548,12 +622,19 @@ void ShowVerboseInfo(FILE *fNDS, Header &header, int romType)
 
 unsigned int FullyReadHeader(FILE *fNDS, Header &header) {
 	unsigned int headersize = 0x200;
-	fseek(fNDS, 0, SEEK_SET);
-	fread(&header, 1, headersize, fNDS);
+	if (fseek(fNDS, 0, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ROM start (1)\n", __func__);
+
+	if (fread(&header, 1, headersize, fNDS) != headersize)
+		LogFatal("%s: Failed to read initial header data\n", __func__);
 
 	if (header.unitcode & 2) { // DSi application
-		fseek(fNDS, 0, SEEK_SET);
-		fread((char*)&header, 1, sizeof(Header), fNDS);
+		if (fseek(fNDS, 0, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek ROM start (2)\n", __func__);
+
+		if (fread((char*)&header, 1, sizeof(Header), fNDS) != sizeof(Header))
+			LogFatal("%s: Failed to read header data\n", __func__);
+
 		headersize = sizeof(Header);
 	}
 
@@ -573,7 +654,9 @@ unsigned int GetBannerSizeFromHeader(Header &header, unsigned short banner_versi
 void ShowInfo(char *ndsfilename)
 {
 	fNDS = fopen(ndsfilename, "rb");
-	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+	if (!fNDS)
+		LogFatal("Cannot open file '%s'.\n", ndsfilename);
+
 	FullyReadHeader(fNDS, header);
 
 	int romType = DetectRomType();
@@ -587,7 +670,9 @@ void ShowInfo(char *ndsfilename)
 	if (header.banner_offset)
 	{
 		Banner banner;
-		fseek(fNDS, header.banner_offset, SEEK_SET);
+		if (fseek(fNDS, header.banner_offset, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek banner offset\n", __func__);
+
 		if (fread(&banner, 1, bannersize, fNDS))
 		{
 			printf("\n");
@@ -652,15 +737,19 @@ void ShowInfo(char *ndsfilename)
 	}
 
 	// ARM9 footer
-	fseek(fNDS, header.arm9_rom_offset + header.arm9_size, SEEK_SET);
+	if (fseek(fNDS, header.arm9_rom_offset + header.arm9_size, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ARM9 footer\n", __func__);
+
 	unsigned_int nitrocode;
 	if (fread(&nitrocode, sizeof(nitrocode), 1, fNDS) && (nitrocode == 0xDEC00621))
 	{
 		printf("\n");
 		printf("ARM9 footer found.\n");
 		unsigned_int x;
-		fread(&x, sizeof(x), 1, fNDS);
-		fread(&x, sizeof(x), 1, fNDS);
+		if (fread(&x, sizeof(x), 1, fNDS) != 1)
+			LogFatal("%s: Failed to read header\n", __func__);
+		if (fread(&x, sizeof(x), 1, fNDS) != 1)
+			LogFatal("%s: Failed to read header\n", __func__);
 	}
 
 	// show security CRCs
