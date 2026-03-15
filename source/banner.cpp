@@ -1,12 +1,14 @@
 // SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 
+#include <cstddef>
+
 #include "ndstool.h"
 #include "raster.h"
 #include "banner.h"
 #include "crc.h"
 #include "default_icon_png.h"
 #include "utf16.h"
-#include <cstddef>
+#include "log.h"
 
 unsigned int GetBannerStartCRCSlot(unsigned short slot);
 void InsertBannerCRC(Banner &banner, unsigned int bannersize);
@@ -117,9 +119,13 @@ void BannerPutTitles(Banner &banner)
 
 unsigned short ExtractBannerVersion(FILE *fNDS, unsigned int banner_offset)
 {
-	fseek(fNDS, banner_offset, SEEK_SET);
+	if (fseek(fNDS, banner_offset, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek banner\n", __func__);
+
 	unsigned short version;
-	fread(&version, sizeof(version), 1, fNDS);
+	if (fread(&version, sizeof(version), 1, fNDS) != 1)
+		LogFatal("%s: Failed to read banner version\n", __func__);
+
 	return version;
 }
 
@@ -129,18 +135,25 @@ unsigned short ExtractBannerVersion(FILE *fNDS, unsigned int banner_offset)
 void FixBannerCRC(char *ndsfilename, unsigned int banner_offset, unsigned int bannersize)
 {
 	fNDS = fopen(ndsfilename, "r+b");
-	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+	if (!fNDS)
+		LogFatal("Cannot open file '%s'.\n", ndsfilename);
 
 	// banner info
 	if (banner_offset)
 	{
 		Banner banner = {};
 
-		fseek(fNDS, banner_offset, SEEK_SET);
+		if (fseek(fNDS, banner_offset, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek banner (1)\n", __func__);
+
 		if (fread(&banner, 1, bannersize, fNDS)) {
 			InsertBannerCRC(banner, bannersize);
-			fseek(fNDS, banner_offset, SEEK_SET);
-			fwrite(&banner, bannersize, 1, fNDS);
+
+			if (fseek(fNDS, banner_offset, SEEK_SET) == -1)
+				LogFatal("%s: Failed to seek banner (2)\n", __func__);
+
+			if (fwrite(&banner, bannersize, 1, fNDS) != 1)
+				LogFatal("%s: Failed to write banner\n", __func__);
 		}
 	}
 	fclose(fNDS);
@@ -276,7 +289,8 @@ static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int in_de
 	}
 	else if (delay > 255)
 	{
-		fprintf(stderr, "Warning: Frame %d delay %d frames (%d ms) too long - shortened to 255 frames.\n", frame, delay, in_delay);
+		LogWarning("Frame %d delay %d frames (%d ms) too long - shortened to 255 frames.\n",
+					frame, delay, in_delay);
 		delay = 255;
 	}
 	return delay | (frame_entry << 8) | (frame_entry << 11) | (flip_h ? (1 << 14) : 0) | (flip_v ? (1 << 15) : 0);
@@ -284,12 +298,17 @@ static unsigned_short IconGetSequenceEntry(int frame, int frame_entry, int in_de
 
 void IconToRasterImage()
 {
-	fNDS = fopen(ndsfilename, "rb");
-	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+	Banner banner = {};
 
-	Banner banner;
-	fseek(fNDS, header.banner_offset, SEEK_SET);
-	fread(&banner, 1, sizeof(banner), fNDS);
+	fNDS = fopen(ndsfilename, "rb");
+	if (!fNDS)
+		LogFatal("Cannot open file '%s'.\n", ndsfilename);
+
+	if (fseek(fNDS, header.banner_offset, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek banner data\n", __func__);
+
+	if (fread(&banner, 1, sizeof(banner), fNDS) != sizeof(banner))
+		LogFatal("%s: Failed to read banner data\n", __func__);
 
 	fclose(fNDS);
 
@@ -412,5 +431,6 @@ void IconFromRasterImage()
 	BannerPutTitles(banner);
 	InsertBannerCRC(banner, bannersize);
 
-	fwrite(&banner, 1, bannersize, fNDS);
+	if (fwrite(&banner, 1, bannersize, fNDS) != bannersize)
+		LogFatal("%s: Failed to write banner data\n", __func__);
 }
