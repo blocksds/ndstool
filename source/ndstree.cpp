@@ -1,5 +1,6 @@
 // SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 
+#include "log.h"
 #include "ndstool.h"
 #include "ndstree.h"
 
@@ -32,10 +33,7 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 
 	DIR *dir = opendir(path);
 	if (!dir)
-	{
-		fprintf(stderr, "Cannot open directory '%s'.\n", path);
-		exit(1);
-	}
+		LogFatal("Cannot open directory '%s'.\n", path);
 
 	struct dirent *de;
 	while ((de = readdir(dir)))
@@ -52,10 +50,7 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 
 		struct stat st;
 		if (stat(strbuf, &st))
-		{
-			fprintf(stderr, "Cannot get stat of '%s'.\n", strbuf);
-			exit(1);
-		}
+			LogFatal("Cannot get stat of '%s'.\n", strbuf);
 
 		//if (S_ISDIR(st.st_mode) && !subdirs) continue;		// skip subdirectories
 
@@ -80,8 +75,7 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 				{
 					// There is a file with the same name, so we can't create
 					// this directory.
-					fprintf(stderr, "Trying to create directory but a file with the same name already exists: %s\n", strbuf);
-					exit(EXIT_FAILURE);
+					LogFatal("Trying to create directory but a file with the same name already exists: %s\n", strbuf);
 				}
 			}
 
@@ -104,8 +98,7 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 			TreeNode *found = first->Find(de->d_name);
 			if (found)
 			{
-				fprintf(stderr, "Trying to create file but an entry with the same name already exists: %s\n", strbuf);
-				exit(EXIT_FAILURE);
+				LogFatal("Trying to create file but an entry with the same name already exists: %s\n", strbuf);
 			}
 
 			node = node->New(strbuf, de->d_name, false);
@@ -113,8 +106,7 @@ TreeNode *ReadDirectory(TreeNode *node, char *path)
 		}
 		else
 		{
-			fprintf(stderr, "'%s' is not a file or directory!\n", strbuf);
-			exit(1);
+			LogFatal("'%s' is not a file or directory!\n", strbuf);
 		}
 	}
 	closedir(dir);

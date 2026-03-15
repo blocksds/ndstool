@@ -12,6 +12,7 @@
 #include "ndscreate.h"
 #include "ndsextract.h"
 #include "banner.h"
+#include "log.h"
 
 int verbose = 0;
 Header header;
@@ -217,18 +218,12 @@ int main(int argc, char *argv[])
 		{
 			ArgInfo *info = GetArgumentInformation(arg + 1); // Skip dash
 			if (info == NULL)
-			{
-				fprintf(stderr, "Unknown argument '%s'\n", arg);
-				return EXIT_FAILURE;
-			}
+				LogFatal("Unknown argument '%s'\n", arg);
 
 			if (info->required_args > 0)
 			{
 				if (a + info->required_args > argc)
-				{
-					fprintf(stderr, "Not enough arguments for '%s'\n", arg);
-					return EXIT_FAILURE;
-				}
+					LogFatal("Not enough arguments for '%s'\n", arg);
 			}
 		}
 		else
@@ -241,8 +236,7 @@ int main(int argc, char *argv[])
 				continue;
 			}
 
-			fprintf(stderr, "Unknown argument (use -? for help): %s\n", arg);
-			return EXIT_FAILURE;
+			LogFatal("Unknown argument (use -? for help): %s\n", arg);
 		}
 
 		if (strcmp(arg, "-i") == 0) // Show information
@@ -288,10 +282,7 @@ int main(int argc, char *argv[])
 					break;
 
 				if (filemask_num == MAX_FILEMASKS)
-				{
-					fprintf(stderr, "Too many file masks\n");
-					return EXIT_FAILURE;
-				}
+					LogFatal("Too many file masks\n");
 
 				filemasks[filemask_num++] = argv[a++];
 			}
@@ -315,10 +306,7 @@ int main(int argc, char *argv[])
 					break;
 
 				if (filerootdirs_num == MAX_FILEROOTDIRS)
-				{
-					fprintf(stderr, "Too many root directories");
-					return EXIT_FAILURE;
-				}
+					LogFatal("Too many root directories");
 
 				filerootdirs[filerootdirs_num++] = argv[a++];
 			}
@@ -356,9 +344,8 @@ int main(int argc, char *argv[])
 			}
 			else if (text_idx >= MAX_BANNER_TITLE_COUNT)
 			{
-				fprintf(stderr, "The argument for '-bt' must be a number between 0 and %d\n",
+				LogFatal("The argument for '-bt' must be a number between 0 and %d\n",
 						MAX_BANNER_TITLE_COUNT - 1);
-				return EXIT_FAILURE;
 			}
 
 			bannertext[text_idx] = argv[a++];
@@ -399,11 +386,9 @@ int main(int argc, char *argv[])
 			// Valid unit codes are 0 (DS-only), 2 (DS and DSi supported) and 3
 			// (DSi-only).
 			unitCode = strtoul(argv[a++], 0, 10);
+
 			if ((unitCode == 1) || (unitCode > 3))
-			{
-				fprintf(stderr, "Invalid value for '-uc' (must be 0, 2 or 3): %u\n", unitCode);
-				return EXIT_FAILURE;
-			}
+				LogFatal("Invalid value for '-uc' (must be 0, 2 or 3): %u\n", unitCode);
 		}
 		else if (strcmp(arg, "-z") == 0) // SCFG access flags
 		{
@@ -505,8 +490,7 @@ int main(int argc, char *argv[])
 		}
 		else
 		{
-			fprintf(stderr, "Internal parser error (argument %d)\n", a);
-			return EXIT_FAILURE;
+			LogFatal("Internal parser error (argument %d)\n", a);
 		}
 	}
 
@@ -520,33 +504,29 @@ int main(int argc, char *argv[])
 	{
 		if (strlen(gamecode) != 4)
 		{
-			fprintf(stderr, "Game code must be 4 characters!\n");
-			return 1;
+			LogFatal("Game code must be 4 characters!\n");
 		}
 		for (int i=0; i<4; i++) if ((gamecode[i] >= 'a') && (gamecode[i] <= 'z'))
 		{
-			fprintf(stderr, "Warning: Gamecode contains lowercase characters.\n");
+			LogWarning("Gamecode contains lowercase characters.\n");
 			break;
 		}
 		if (gamecode[0] == 'A')
 		{
-			fprintf(stderr, "Warning: Gamecode starts with 'A', which might be used for another commercial product.\n");
+			LogWarning("Gamecode starts with 'A', which might be used for another commercial product.\n");
 		}
 	}
 	if (makercode && (strlen(makercode) != 2))
 	{
-		fprintf(stderr, "Maker code must be 2 characters!\n");
-		return 1;
+		LogFatal("Maker code must be 2 characters!\n");
 	}
 	if (title && (strlen(title) > 12))
 	{
-		fprintf(stderr, "Title can be no more than 12 characters!\n");
-		return 1;
+		LogFatal("Title can be no more than 12 characters!\n");
 	}
 	if (romversion > 255)
 	{
-		fprintf(stderr, "romversion can only be 0 - 255!\n");
-		return 1;
+		LogFatal("romversion can only be 0 - 255!\n");
 	}
 	if (!bannertext[1])
 		bannertext[1] = "";
@@ -557,8 +537,7 @@ int main(int argc, char *argv[])
 
 	if ((num_actions > 0) && (ndsfilename == NULL))
 	{
-		fprintf(stderr, "No NDS file provided\n");
-		exit(EXIT_FAILURE);
+		LogFatal("No NDS file provided\n");
 	}
 
 	int status = 0;
@@ -577,10 +556,8 @@ int main(int argc, char *argv[])
 			case ACTION_FIXBANNERCRC:
 				fNDS = fopen(ndsfilename, "rb");
 				if (!fNDS)
-				{
-					fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename);
-					exit(EXIT_FAILURE);
-				}
+					LogFatal("Cannot open file '%s'.\n", ndsfilename);
+
 				FullyReadHeader(fNDS, header);
 				bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
 				fclose(fNDS);
@@ -590,10 +567,8 @@ int main(int argc, char *argv[])
 			case ACTION_EXTRACT: {
 				fNDS = fopen(ndsfilename, "rb");
 				if (!fNDS)
-				{
-					fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename);
-					exit(EXIT_FAILURE);
-				}
+					LogFatal("Cannot open file '%s'.\n", ndsfilename);
+
 				unsigned int headersize = FullyReadHeader(fNDS, header);
 				bannersize = GetBannerSizeFromHeader(header, ExtractBannerVersion(fNDS, header.banner_offset));
 				fclose(fNDS);
