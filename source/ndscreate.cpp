@@ -1,5 +1,7 @@
 // SPDX-FileNotice: Modified from the original version by the BlocksDS project, starting from 2023.
 
+#include <algorithm>
+
 #include <time.h>
 #include <unistd.h>
 #include "ndstool.h"
@@ -8,12 +10,11 @@
 #include "banner.h"
 #include "overlay.h"
 #include "loadme.h"
+#include "log.h"
 #include "ndstree.h"
 #include "elf.h"
 #include "sha1.h"
 #include "crc.h"
-
-#include <algorithm>
 
 static const long arm9_align = 0x1FF;
 static const long arm7_min = 0x8000;
@@ -58,12 +59,20 @@ void Sha1Hmac(u8 output[20], FILE* f, unsigned int pos, unsigned int size)
 	for (int i = 0; i < 0x40; i ++) keypad[i] = hmac_sha1_key[i]^0x36;
 	sha1_begin(cx);
 	sha1_hash(keypad, 0x40, cx);
-	unsigned int tmp = ftell(f);
-	fseek(f, pos, SEEK_SET);
+
+	long tmp = ftell(f);
+	if (tmp < 0)
+		LogFatal("%s: Failed to get current position\n", __func__);
+
+	if (fseek(f, pos, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek data\n", __func__);
+
 	while (size)
 	{
 		unsigned int rdbytes = size > sizeof(readbuf) ? sizeof(readbuf) : size;
-		fread(readbuf, 1, rdbytes, f);
+		if (fread(readbuf, 1, rdbytes, f) != rdbytes)
+			LogFatal("%s: Failed to read data\n", __func__);
+
 		sha1_hash(readbuf, rdbytes, cx);
 		size -= rdbytes;
 	}
@@ -73,7 +82,9 @@ void Sha1Hmac(u8 output[20], FILE* f, unsigned int pos, unsigned int size)
 	sha1_hash(keypad, 0x40, cx);
 	sha1_hash(output, 20, cx);
 	sha1_end(output, cx);
-	fseek(f, tmp, SEEK_SET);
+
+	if (fseek(f, tmp, SEEK_SET) == -1)
+		LogFatal("%s: Failed to restore previous position\n", __func__);
 }
 
 /*
@@ -92,7 +103,9 @@ bool HasElfHeader(char *filename)
 	char hdr[4];
 
 	FILE *fi = fopen(filename, "rb");
-	if (!fi) return false;
+	if (!fi)
+		LogFatal("%s: Failed to open '%s'\n");
+
 	size_t bytesread = fread(hdr,1,4,fi);
 	fclose(fi);
 	if(bytesread==0) return false;
@@ -106,14 +119,18 @@ bool HasElfHeader(char *filename)
 int CopyFromBin(const char *binFilename, unsigned int *size = 0, unsigned int *size_without_footer = 0)
 {
 	FILE *fi = fopen(binFilename, "rb");
-	if (!fi) { fprintf(stderr, "Cannot open file '%s'.\n", binFilename); exit(1); }
+	if (!fi)
+		LogFatal("Cannot open file '%s'.\n", binFilename);
+
 	size_t _size = 0;
 	unsigned char buffer[64*1024];
 	while (1)
 	{
 		size_t bytesread = fread(buffer, 1, sizeof(buffer), fi);
 		if (bytesread == 0) break;
-		fwrite(buffer, 1, bytesread, fNDS);
+		if (fwrite(buffer, 1, bytesread, fNDS) != bytesread)
+			LogFatal("%s: Failed to write data\n");
+
 		_size += bytesread;
 	}
 	if (size) *size = _size;
@@ -121,9 +138,13 @@ int CopyFromBin(const char *binFilename, unsigned int *size = 0, unsigned int *s
 	// check footer
 	if (size_without_footer)
 	{
-		fseek(fi, _size - 3*4, SEEK_SET);
+		if (fseek(fi, _size - 3*4, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek footer\n", __func__);
+
 		unsigned_int nitrocode;
-		fread(&nitrocode, sizeof(nitrocode), 1, fi);
+		if (fread(&nitrocode, sizeof(nitrocode), 1, fi) != 1)
+			LogFatal("%s: Failed to read nitrocode\n", __func__);
+
 		if (nitrocode == 0xDEC00621)
 			*size_without_footer = _size - 3*4;
 		else
@@ -155,14 +176,25 @@ static void AddFile(const char *fs_path, const char *rootdir, const char *prefix
 	}
 
 	file_top = (file_top + file_align) &~ file_align;
-	fseek(fNDS, file_top, SEEK_SET);
+	if (fseek(fNDS, file_top, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek file offset\n", __func__);
 
 	FILE *fi = fopen(strbuf, "rb");
-	if (!fi) { fprintf(stderr, "Cannot open file '%s'.\n", strbuf); exit(1); }
-	fseek(fi, 0, SEEK_END);
-	unsigned int size = ftell(fi);
+	if (!fi)
+		LogFatal("Cannot open file '%s'.\n", strbuf);
+
+	if (fseek(fi, 0, SEEK_END) == -1)
+		LogFatal("%s: Failed to seek file end\n", __func__);
+
+	long position = ftell(fi);
+	if (position < 0)
+		LogFatal("%s: Failed to get file size\n", __func__);
+
+	unsigned int size = position;
+
 	unsigned int file_bottom = file_top + size;
-	fseek(fi, 0, SEEK_SET);
+	if (fseek(fi, 0, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek file start\n", __func__);
 
 	// print
 	if (verbose)
@@ -176,20 +208,37 @@ static void AddFile(const char *fs_path, const char *rootdir, const char *prefix
 	while (size > 0)
 	{
 		unsigned int size2 = (size >= sizeof_copybuf) ? sizeof_copybuf : size;
-		fread(copybuf, 1, size2, fi);
-		fwrite(copybuf, 1, size2, fNDS);
+
+		if (fread(copybuf, 1, size2, fi) != size2)
+			LogFatal("%s: Failed to read file data\n", __func__);
+
+		if (fwrite(copybuf, 1, size2, fNDS) != size2)
+			LogFatal("%s: Failed to write file data\n", __func__);
+
 		size -= size2;
 	}
 	delete [] copybuf;
 	fclose(fi);
-	if ((unsigned int)ftell(fNDS) > file_end) file_end = ftell(fNDS);
+
+	long new_position = ftell(fNDS);
+	if (new_position < 0)
+		LogFatal("%s: Failed to get current position\n", __func__);
+
+	size_t real_file_end = new_position;
+	if (real_file_end > file_end)
+		file_end = real_file_end;
 
 	// write fat
-	fseek(fNDS, header.fat_offset + 8*file_id, SEEK_SET);
+	if (fseek(fNDS, header.fat_offset + 8*file_id, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek FAT offset\n", __func__);
+
 	unsigned_int top = file_top;
-	fwrite(&top, 1, sizeof(top), fNDS);
+	if (fwrite(&top, 1, sizeof(top), fNDS) != sizeof(top))
+		LogFatal("%s: Failed to write FAT top offset\n", __func__);
+
 	unsigned_int bottom = file_bottom;
-	fwrite(&bottom, 1, sizeof(bottom), fNDS);
+	if (fwrite(&bottom, 1, sizeof(bottom), fNDS) != sizeof(bottom))
+		LogFatal("%s: Failed to write FAT bottom offset\n", __func__);
 
 	file_top = file_bottom;
 }
@@ -206,30 +255,44 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
 	if (verbose) printf("%s\n", prefix);
 
 	// write directory info
-	fseek(fNDS, header.fnt_offset + 8*(this_dir_id & 0xFFF), SEEK_SET);
+	if (fseek(fNDS, header.fnt_offset + 8*(this_dir_id & 0xFFF), SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek FNT start offset\n", __func__);
+
 	unsigned_int entry_start = _entry_start;	// reference location of entry name
-	fwrite(&entry_start, 1, sizeof(entry_start), fNDS);
+	if (fwrite(&entry_start, 1, sizeof(entry_start), fNDS) != sizeof(entry_start))
+		LogFatal("%s: Failed to write FNT start offset\n", __func__);
+
 	unsigned int _top_file_id = free_file_id;
 	unsigned_short top_file_id = _top_file_id;	// file ID of top entry
-	fwrite(&top_file_id, 1, sizeof(top_file_id), fNDS);
+	if (fwrite(&top_file_id, 1, sizeof(top_file_id), fNDS) != sizeof(top_file_id))
+		LogFatal("%s: Failed to write ID of top entry\n", __func__);
+
 	unsigned_short parent_id = _parent_id;	// ID of parent directory or directory count (root)
-	fwrite(&parent_id, 1, sizeof(parent_id), fNDS);
+	if (fwrite(&parent_id, 1, sizeof(parent_id), fNDS) != sizeof(parent_id))
+		LogFatal("%s: Failed to write ID of parent directory\n", __func__);
 
 	//printf("dir %X file_id %u +\n", this_dir_id, (int)top_file_id);
 
 	// directory entrynames
 	{
 		// start of directory entrynames
-		fseek(fNDS, header.fnt_offset + _entry_start, SEEK_SET);
+		if (fseek(fNDS, header.fnt_offset + _entry_start, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek first directory entry\n", __func__);
 
 		// write filenames
 		for (TreeNode *t=node; t; t=t->next)
 		{
 			if (!t->directory)
 			{
-				int namelen = strlen(t->name);
-				fputc(t->directory ? namelen | 128 : namelen, fNDS); _entry_start += 1;
-				fwrite(t->name, 1, namelen, fNDS); _entry_start += namelen;
+				size_t namelen = strlen(t->name);
+
+				if (fputc(t->directory ? namelen | 128 : namelen, fNDS) == EOF)
+					LogFatal("%s: Failed to write file name length\n", __func__);
+				_entry_start += 1;
+
+				if (fwrite(t->name, 1, namelen, fNDS) != namelen)
+					LogFatal("%s: Failed to write file name\n", __func__);
+				_entry_start += namelen;
 
 				//printf("[ %s -> %u ]\n", t->name, free_file_id);
 
@@ -243,20 +306,29 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
 			if (t->directory)
 			{
 				//printf("*entry %s\n", t->name);
+				size_t namelen = strlen(t->name);
 
-				int namelen = strlen(t->name);
-				fputc(t->directory ? namelen | 128 : namelen, fNDS); _entry_start += 1;
-				fwrite(t->name, 1, namelen, fNDS); _entry_start += namelen;
+				if (fputc(t->directory ? namelen | 128 : namelen, fNDS) == EOF)
+					LogFatal("%s: Failed to write directory name length\n", __func__);
+				_entry_start += 1;
+
+				if (fwrite(t->name, 1, namelen, fNDS) != namelen)
+					LogFatal("%s: Failed to write directory name\n", __func__);
+				_entry_start += namelen;
 
 				//printf("[ %s -> %X ]\n", t->name, t->dir_id);
 
 				unsigned_short _dir_id_tmp = t->dir_id;
-				fwrite(&_dir_id_tmp, 1, sizeof(_dir_id_tmp), fNDS);
+				if (fwrite(&_dir_id_tmp, 1, sizeof(_dir_id_tmp), fNDS) != sizeof(_dir_id_tmp))
+					LogFatal("%s: Failed to write directory ID\n", __func__);
 				_entry_start += sizeof(_dir_id_tmp);
 			}
 		}
 
-		fputc(0, fNDS); _entry_start += 1;	// end of directory entrynames
+		// end of directory entrynames
+		if (fputc(0, fNDS) == EOF)
+			LogFatal("%s: Failed to write end of directory list\n", __func__);
+		_entry_start += 1;
 	}
 
 	// add files
