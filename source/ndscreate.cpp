@@ -286,7 +286,8 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
 			{
 				size_t namelen = strlen(t->name);
 
-				if (fputc(t->directory ? namelen | 128 : namelen, fNDS) == EOF)
+				// Bit 7 cleared means this is a file
+				if (fputc(namelen, fNDS) == EOF)
 					LogFatal("%s: Failed to write file name length\n", __func__);
 				_entry_start += 1;
 
@@ -308,7 +309,8 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
 				//printf("*entry %s\n", t->name);
 				size_t namelen = strlen(t->name);
 
-				if (fputc(t->directory ? namelen | 128 : namelen, fNDS) == EOF)
+				// Bit 7 set means this is a file
+				if (fputc(namelen | (1 << 7), fNDS) == EOF)
 					LogFatal("%s: Failed to write directory name length\n", __func__);
 				_entry_start += 1;
 
