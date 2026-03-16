@@ -367,13 +367,9 @@ void AddDirectory(TreeNode *node, const char *prefix, unsigned int this_dir_id, 
  */
 void GetDefaultArm7(char* buffer, size_t size)
 {
-	char *blocksds_path;
-	blocksds_path = getenv("BLOCKSDS");
-
-	if (!blocksds_path) {
-		fprintf(stderr,"No arm7 specified and BLOCKSDS missing from environment!\n");
-		exit(1);
-	}
+	char *blocksds_path = getenv("BLOCKSDS");
+	if (!blocksds_path)
+		LogFatal("No arm7 specified and BLOCKSDS missing from environment!\n");
 
 	snprintf(buffer, size, "%s/sys/default_arm7/arm7.elf", blocksds_path);
 }
@@ -383,10 +379,8 @@ void GetDefaultArm7(char* buffer, size_t size)
  */
 void Create()
 {
-	if (!arm9filename) {
-		fprintf(stderr, "ARM9 binary file required.\n");
-		exit(1);
-	}
+	if (!arm9filename)
+		LogFatal("ARM9 binary file required.\n");
 
 	char arm7PathName[MAXPATHLEN];
 	if (!arm7filename) {
@@ -399,7 +393,8 @@ void Create()
 	bool is_both_elf = is_arm9_elf && is_arm7_elf;
 
 	fNDS = fopen(ndsfilename, "wb+");
-	if (!fNDS) { fprintf(stderr, "Cannot open file '%s'.\n", ndsfilename); exit(1); }
+	if (!fNDS)
+		LogFatal("Cannot open file '%s'.\n", ndsfilename);
 
 	bool bSecureSyscalls = false;
 	char *headerfilename = (headerfilename_or_size && (strtoul(headerfilename_or_size,0,0) == 0)) ? headerfilename_or_size : 0;
@@ -416,8 +411,12 @@ void Create()
 	{
 		// header template
 		FILE *fi = fopen(headerfilename, "rb");
-		if (!fi) { fprintf(stderr, "Cannot open file '%s'.\n", headerfilename); exit(1); }
-		fread(&header, 1, 0x200, fi);
+		if (!fi)
+			LogFatal("Cannot open file '%s'.\n", headerfilename);
+
+		if (fread(&header, 1, 0x200, fi) != 0x200)
+			LogFatal("%s: Failed to read header data\n", __func__);
+
 		fclose(fi);
 
 		if ((header.arm9_ram_address + 0x800 == header.arm9_entry_address) || (header.rom_header_size > 0x200))
@@ -469,8 +468,12 @@ void Create()
 		else
 		{
 			FILE *fi = fopen(logofilename, "rb");
-			if (!fi) { fprintf(stderr, "Cannot open file '%s'.\n", logofilename); exit(1); }
-			fread(&header.logo, 1, 156, fi);
+			if (!fi)
+				LogFatal("Cannot open file '%s'.\n", logofilename);
+
+			if (fread(&header.logo, 1, 156, fi) != 156)
+				LogFatal("%s: Failed to write logo data\n", __func__);
+
 			fclose(fi);
 		}
 	}
@@ -493,13 +496,13 @@ void Create()
 
 		if (loadme_size > loadmeStubMaxSize)
 		{
-			fprintf(stderr, "loadme size error: %d > %d @ %08X\n", loadme_size, loadmeStubMaxSize, loadmeStubLocation);
-			exit(1);
+			LogFatal("loadme size error: %d > %d @ %08X\n",
+					 loadme_size, loadmeStubMaxSize, loadmeStubLocation);
 		}
+
 		if (*(unsigned_int *)(loadme + loadmeStubLocationOffset) != 0xC0)
 		{
-			fprintf(stderr, "loadme stub location error\n");
-			exit(1);
+			LogFatal("loadme stub location error\n");
 		}
 
 		memset(((unsigned char *) &header) + loadmeStubLocation, 0, loadmeStubMaxSize);
@@ -548,12 +551,19 @@ void Create()
 
 	// --------------------------
 
-	fseek(fNDS, header.rom_header_size, SEEK_SET);
+	if (fseek(fNDS, header.rom_header_size, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek ROM header size offset\n", __func__);
 
 	// ARM9 binary
 	{
-		header.arm9_rom_offset = (ftell(fNDS) + arm9_align) &~ arm9_align;
-		fseek(fNDS, header.arm9_rom_offset, SEEK_SET);
+		long position = ftell(fNDS);
+		if (position < 0)
+			LogFatal("%s: Failed to get position of ARM9 binary\n", __func__);
+
+		header.arm9_rom_offset = (position + arm9_align) &~ arm9_align;
+
+		if (fseek(fNDS, header.arm9_rom_offset, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek position of ARM9 ROM offset\n", __func__);
 
 		unsigned int entry_address = arm9Entry ? arm9Entry : (unsigned int)header.arm9_entry_address;		// template
 		unsigned int ram_address = arm9RamAddress ? arm9RamAddress : (unsigned int)header.arm9_ram_address;		// template
@@ -569,12 +579,19 @@ void Create()
 			FILE *fARM9 = fopen(arm9filename, "rb");
 			if (fARM9)
 			{
-				fread(&x, sizeof(x), 1, fARM9);
+				if (fread(&x, sizeof(x), 1, fARM9) != 1)
+					LogFatal("%s: Failed to read ARM9 binary\n", __func__);
+
 				fclose(fARM9);
+
 				if (x != 0xE7FFDEFF)	// not already exist?
 				{
 					x = 0xE7FFDEFF;
-					for (int i=0; i<0x800/4; i++) fwrite(&x, sizeof(x), 1, fNDS);
+					for (int i=0; i<0x800/4; i++)
+					{
+						if (fwrite(&x, sizeof(x), 1, fNDS) != 1)
+							LogFatal("%s: Failed to write ARM9 binary\n", __func__);
+					}
 					header.arm9_size = 0x800;
 				}
 			}
@@ -594,20 +611,40 @@ void Create()
 			// Pad the arm9 binary to 16kb
 			unsigned int needed_padding = 0x4000 - header.arm9_size;
 			header.arm9_size = 0x4000;
-			fseek(fNDS, needed_padding-1, SEEK_CUR);
-			fputc(0, fNDS);
+
+			if (fseek(fNDS, needed_padding-1, SEEK_CUR) == -1)
+				LogFatal("%s: Failed to seek end of ARM9 padding\n", __func__);
+
+			// Writing a byte will fill the bytes we have skipped with fseek()
+			if (fputc(0, fNDS) == EOF)
+				LogFatal("%s: Failed to write ARM9 padding\n", __func__);
 		}
 	}
 
 	// ARM9 overlay table
 	if (arm9ovltablefilename)
 	{
-		unsigned_int x1 = 0xDEC00621; fwrite(&x1, sizeof(x1), 1, fNDS);		// 0x2106c0de magic
-		unsigned_int x2 = 0x00000AD8; fwrite(&x2, sizeof(x2), 1, fNDS);		// ???
-		unsigned_int x3 = 0x00000000; fwrite(&x3, sizeof(x3), 1, fNDS);		// ???
+		unsigned_int x1 = 0xDEC00621; // 0x2106c0de magic
+		if (fwrite(&x1, sizeof(x1), 1, fNDS) != 1)
+			LogFatal("%s: Failed to write overlay value 1\n", __func__);
 
-		header.arm9_overlay_offset = ftell(fNDS);		// do not align
-		fseek(fNDS, header.arm9_overlay_offset, SEEK_SET);
+		unsigned_int x2 = 0x00000AD8; // ???
+		if (fwrite(&x2, sizeof(x2), 1, fNDS) != 1)
+			LogFatal("%s: Failed to write overlay value 2\n", __func__);
+
+		unsigned_int x3 = 0x00000000; // ???
+		if (fwrite(&x3, sizeof(x3), 1, fNDS) != 1)
+			LogFatal("%s: Failed to write overlay value 3\n", __func__);
+
+		long position = ftell(fNDS);
+		if (position < 0)
+			LogFatal("%s: Failed to get position of ARM9 overlay table\n", __func__);
+
+		header.arm9_overlay_offset = position; // do not align
+
+		if (fseek(fNDS, header.arm9_overlay_offset, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek ARM9 overlay offset\n", __func__);
+
 		unsigned int size = 0;
 		CopyFromBin(arm9ovltablefilename, &size);
 		header.arm9_overlay_size = size;
@@ -619,8 +656,16 @@ void Create()
 	// fseek(fNDS, 1388772, SEEK_CUR);		// test for ASME
 
 	// ARM7 binary
-	header.arm7_rom_offset = std::max( (ftell(fNDS) + arm7_align) &~ arm7_align, arm7_min);
-	fseek(fNDS, header.arm7_rom_offset, SEEK_SET);
+	{
+		long position = ftell(fNDS);
+		if (position < 0)
+			LogFatal("%s: Failed to get position of ARM7 binary\n", __func__);
+
+		header.arm7_rom_offset = std::max((position + arm7_align) &~ arm7_align, arm7_min);
+
+		if (fseek(fNDS, header.arm7_rom_offset, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek ARM7 ROM offset\n", __func__);
+	}
 
 	// if (arm7filename)
 	{
@@ -645,8 +690,15 @@ void Create()
 	// ARM7 overlay table
 	if (arm7ovltablefilename)
 	{
-		header.arm7_overlay_offset = ftell(fNDS);		// do not align
-		fseek(fNDS, header.arm7_overlay_offset, SEEK_SET);
+		long position = ftell(fNDS);
+		if (position < 0)
+			LogFatal("%s: Failed to get position of ARM7 overlay table\n", __func__);
+
+		header.arm7_overlay_offset = position; // do not align
+
+		if (fseek(fNDS, header.arm7_overlay_offset, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek ARM7 overlay offset\n", __func__);
+
 		unsigned int size = 0;
 		CopyFromBin(arm7ovltablefilename, &size);
 		header.arm7_overlay_size = size;
@@ -659,8 +711,7 @@ void Create()
 
 	if (overlay_files && !overlaydir)
 	{
-		fprintf(stderr, "Overlay directory required!.\n");
-		exit(1);
+		LogFatal("Overlay directory required!.\n");
 	}
 
 	// filesystem
@@ -682,9 +733,13 @@ void Create()
 				ReadDirectory(filetree, filerootdirs[i]);
 		}
 
+		long fnt_position = ftell(fNDS);
+		if (fnt_position < 0)
+			LogFatal("%s: Failed to get position of FNT data\n", __func__);
+
 		// calculate offsets required for FNT and FAT
 		_entry_start = 8*directory_count;		// names come after directory structs
-		header.fnt_offset = (ftell(fNDS) + fnt_align) &~ fnt_align;
+		header.fnt_offset = (fnt_position + fnt_align) &~ fnt_align;
 		header.fnt_size =
 			_entry_start +		// directory structs
 			total_name_size +	// total number of name characters for dirs and files
@@ -705,14 +760,16 @@ void Create()
 		// NitroFS needs at least a valid FAT table.
 		if (file_count > 0)
 		{
-			fseek(fNDS, fat_end_offset, SEEK_SET);
+			if (fseek(fNDS, fat_end_offset, SEEK_SET) == -1)
+				LogFatal("%s: Failed to seek FAT end offset\n", __func__);
 
 			const size_t nitrofs_magic_size = 8;
 			const uint8_t magic[nitrofs_magic_size] = {
 				'N', 'i', 't', 'r', 'o', 'F', 'S', '!'
 			};
 
-			fwrite(&magic, 1, nitrofs_magic_size, fNDS);
+			if (fwrite(&magic, 1, nitrofs_magic_size, fNDS) != nitrofs_magic_size)
+				LogFatal("%s: Failed to write NitroFS magic string\n", __func__);
 
 			fat_end_offset += nitrofs_magic_size;
 		}
@@ -720,7 +777,9 @@ void Create()
 		// banner after FNT/FAT
 		{
 			header.banner_offset = (fat_end_offset + banner_align) &~ banner_align;
-			fseek(fNDS, header.banner_offset, SEEK_SET);
+			if (fseek(fNDS, header.banner_offset, SEEK_SET) == -1)
+				LogFatal("%s: Failed to seek banner offset\n", __func__);
+
 			if (bannertype == BANNER_IMAGE)
 			{
 				const char * Ext = bannerfilename == NULL ? NULL : strrchr(bannerfilename, '.');
@@ -730,7 +789,8 @@ void Create()
 					{
 						if (bannerfilename != NULL)
 						{
-							fprintf(stderr, "Warning: Unrecognized banner icon image extension: \"%s\"\n", bannerfilename);
+							LogWarning("Unrecognized banner icon image extension: \"%s\"\n",
+									bannerfilename);
 							bannerfilename = NULL;
 						}
 					}
@@ -738,7 +798,8 @@ void Create()
 					{
 						if (banneranimfilename != NULL)
 						{
-							fprintf(stderr, "Warning: Unrecognized banner animated icon image extension: \"%s\"\n", banneranimfilename);
+							LogWarning("Unrecognized banner animated icon image extension: \"%s\"\n",
+									banneranimfilename);
 							banneranimfilename = NULL;
 						}
 					}
@@ -775,7 +836,8 @@ void Create()
 
 		// add all other (visible) files
 		AddDirectory(filetree, "/", 0xF000, directory_count);
-		fseek(fNDS, file_end, SEEK_SET);
+		if (fseek(fNDS, file_end, SEEK_SET) == -1)
+			LogFatal("%s: Failed to seek end of written files\n", __func__);
 
 		if (verbose)
 		{
@@ -791,9 +853,12 @@ void Create()
 	unsigned int newfilesize = file_end;	//ftell(fNDS);
 	newfilesize = (newfilesize + 3) & ~3;	// align to 4 bytes
 	header.application_end_offset = newfilesize;
-	if (newfilesize != file_end ) {
-		fseek(fNDS, newfilesize-1, SEEK_SET);
-		fputc(0, fNDS);
+	if (newfilesize != file_end)
+	{
+		if (fseek(fNDS, newfilesize-1, SEEK_SET) == -1)
+			LogFatal("%s: Failed to align pointer to start DSi sections\n", __func__);
+		if (fputc(0, fNDS) == EOF)
+			LogFatal("%s: Failed to write padding start DSi sections\n", __func__);
 	}
 
 	// DSi sections
@@ -803,8 +868,14 @@ void Create()
 
 		// DSi ARM9 binary
 		{
-			header.dsi9_rom_offset = (ftell(fNDS) + sector_align) &~ sector_align;
-			fseek(fNDS, header.dsi9_rom_offset, SEEK_SET);
+			long arm9_dsi_position = ftell(fNDS);
+			if (arm9_dsi_position < 0)
+				LogFatal("%s: Failed to get position of DSi ARM9 binary\n", __func__);
+
+			header.dsi9_rom_offset = (arm9_dsi_position + sector_align) &~ sector_align;
+
+			if (fseek(fNDS, header.dsi9_rom_offset, SEEK_SET) == -1)
+				LogFatal("%s: Failed to seek position of DSi ARM9 ROM offset\n", __func__);
 
 			unsigned int ram_address = 0;
 			unsigned int size = 0;
@@ -816,9 +887,15 @@ void Create()
 				if (0x2400000 > ram_address)
 					ram_address = 0x2400000;
 				size = 0x200;
-				fwrite("----DSi9----", 1, 12, fNDS);
-				fseek(fNDS, header.dsi9_rom_offset+size-1, SEEK_SET);
-				fputc(0, fNDS);
+
+				if (fwrite("----DSi9----", 1, 12, fNDS) != 12)
+					LogFatal("%s: Failed to write placeholder DSi ARM9 data\n", __func__);
+
+				if (fseek(fNDS, header.dsi9_rom_offset+size-1, SEEK_SET) == -1)
+					LogFatal("%s: Failed to seek DSi ARM9 padding\n", __func__);
+
+				if (fputc(0, fNDS) == EOF)
+					LogFatal("%s: Failed to write DSi ARM9 padding\n", __func__);
 			}
 			header.dsi9_ram_address = ram_address;
 			header.dsi9_size = ((size + 3) &~ 3);
@@ -826,8 +903,14 @@ void Create()
 
 		// DSi ARM7 binary
 		{
-			header.dsi7_rom_offset = (ftell(fNDS) + arm7_align) &~ arm7_align;
-			fseek(fNDS, header.dsi7_rom_offset, SEEK_SET);
+			long arm7_dsi_position = ftell(fNDS);
+			if (arm7_dsi_position < 0)
+				LogFatal("%s: Failed to get position of DSi ARM7 binary\n", __func__);
+
+			header.dsi7_rom_offset = (arm7_dsi_position + arm7_align) &~ arm7_align;
+
+			if (fseek(fNDS, header.dsi7_rom_offset, SEEK_SET) == -1)
+				LogFatal("%s: Failed to seek position of DSi ARM7 ROM offset\n", __func__);
 
 			unsigned int ram_address = 0;
 			unsigned int size = 0;
@@ -837,9 +920,15 @@ void Create()
 				sections--;
 				ram_address = 0x2E80000;
 				size = 0x200;
-				fwrite("----DSi7----", 1, 12, fNDS);
-				fseek(fNDS, header.dsi7_rom_offset+size-1, SEEK_SET);
-				fputc(0, fNDS);
+
+				if (fwrite("----DSi7----", 1, 12, fNDS) != 12)
+					LogFatal("%s: Failed to write placeholder DSi ARM7 data\n", __func__);
+
+				if (fseek(fNDS, header.dsi7_rom_offset+size-1, SEEK_SET) == -1)
+					LogFatal("%s: Failed to seek DSi ARM7 padding\n", __func__);
+
+				if (fputc(0, fNDS) == EOF)
+					LogFatal("%s: Failed to write DSi ARM7 padding\n", __func__);
 			}
 			header.dsi7_ram_address = ram_address;
 			header.dsi7_size = ((size + 3) &~ 3);
@@ -858,7 +947,7 @@ void Create()
 			if (header.arm9_size > 0x3BFE00)
 			{
 				header.unitcode |= 1;
-				fprintf(stderr, "ARM9 binary is too big for NDS. Marking ROM as DSi-only\n");
+				LogWarning("ARM9 binary is too big for NDS. Marking ROM as DSi-only\n");
 			}
 
 			// Move ARM7 out of the way if it overlaps with ARM9
@@ -875,24 +964,36 @@ void Create()
 				if (header.dsi9_ram_address < arm7_end)
 					header.dsi9_ram_address = (arm7_end + 3) &~ 3;
 			}
-		} else
+		}
+		else
 		{
 			// Undo DSi section copy, keep this a NDS-only image
-			fseek(fNDS, newfilesize, SEEK_SET);
-			ftruncate(fileno(fNDS), newfilesize);
+			if (fseek(fNDS, newfilesize, SEEK_SET) == -1)
+				LogFatal("%s: Failed to seek DS-only ROM header\n", __func__);
+
+			if (ftruncate(fileno(fNDS), newfilesize) != 0)
+				LogFatal("%s: Failed to truncate header for DS-only ROM\n", __func__);
 		}
 	}
 
 	// Set flags in DSi extended header
 	if (header.unitcode & 2)
 	{
-		newfilesize = std::max( ftell(fNDS) , static_cast<long>(header.banner_offset + 0x23c0));
+		long position = ftell(fNDS);
+		if (position < 1)
+			LogFatal("%s: Failed to get position of extended DSi header\n", __func__);
+
+		newfilesize = std::max(position, static_cast<long>(header.banner_offset + 0x23c0));
 		newfilesize = (newfilesize + file_align) & ~file_align;
 		header.total_rom_size = newfilesize;
 
-		if (newfilesize != ftell(fNDS) ) {
-			fseek(fNDS, newfilesize-1, SEEK_SET);
-			fputc(0, fNDS);
+		if (newfilesize != position)
+		{
+			if (fseek(fNDS, newfilesize-1, SEEK_SET) == -1)
+				LogFatal("%s: Failed to set padding position for DSi extended header\n", __func__);
+
+			if (fputc(0, fNDS) == EOF)
+				LogFatal("%s: Failed to write padding for DSi extended header\n", __func__);
 		}
 
 		header.dsi_flags = 0x01;
@@ -967,8 +1068,11 @@ void Create()
 		sha1(&header.rsa_signature[0x6C], (const unsigned char*)&header, 0xE00);
 	}
 
-	fseek(fNDS, 0, SEEK_SET);
-	fwrite(&header, (header.unitcode & 2) ? 0x1000 : 0x200, 1, fNDS);
+	if (fseek(fNDS, 0, SEEK_SET) == -1)
+		LogFatal("%s: Failed to seek beginning of the ROM\n", __func__);
+
+	if (fwrite(&header, (header.unitcode & 2) ? 0x1000 : 0x200, 1, fNDS) != 1)
+		LogFatal("%s: Failed to write header\n", __func__);
 
 	fclose(fNDS);
 }
