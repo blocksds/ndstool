@@ -140,7 +140,8 @@ struct Header
 
 #pragma pack()
 
-#if __STDC_VERSION__ >= 201112L // C11 is required for static_assert
+// C11 is required for static_assert
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 static_assert(sizeof(Header) == 0x1000);
 #endif
 
